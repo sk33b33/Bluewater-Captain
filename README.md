@@ -11,6 +11,11 @@ npm run build      # creates dist/index.html (single self-contained file)
 ```
 Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server instead: `npm start` and open http://localhost:8080.
 
+## Deploy on Vercel
+1. Push this repo to GitHub (already done) and import it at vercel.com/new.
+2. Leave the defaults: `vercel.json` sets the build command (`npm run build`) and output folder (`dist`). No environment variables are needed.
+3. Deploy. Vercel gives you a public link; each push to a branch gets its own preview link.
+
 ## Controls
 | Input | Action |
 |---|---|
