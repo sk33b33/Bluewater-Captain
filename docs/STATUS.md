@@ -10,8 +10,8 @@ Stage 0 — Discovery and technical plan. **Deliverables complete; awaiting user
 - **No game, build, or test exists or has been run.** Nothing is verified beyond the file contents themselves.
 
 ## Next action (needs the user)
-1. Answer the open questions in `docs/TECHNICAL_DESIGN.md` §1 (target platform/hardware, engine familiarity, install availability).
-2. Approve or change D-001 (engine) and the Stage 1 scope in `docs/ROADMAP.md`.
+1. Engine decided: UE5, Windows PC only (D-001 accepted).
+2. Still needed: minimum GPU, C++/Blueprint familiarity, UE install/version, and approval of the Stage 1 scope in `docs/ROADMAP.md`.
 
 ## Stage completion log
 - Stage 0: Documents delivered 2026-10-26; gate not yet passed.

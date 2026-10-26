@@ -4,7 +4,9 @@ Record each decision with date, context, options, decision, and consequences.
 
 ## D-001 — Engine choice (PROVISIONAL, awaiting user approval)
 - Date: 2026-10-26
-- Status: **Proposed.** Not final until the user answers the Stage 0 questions in `docs/TECHNICAL_DESIGN.md` §1 and approves.
+- Status: **ACCEPTED by user (2026-10-26): Unreal Engine 5, Windows PC only.** Exact UE version to be pinned at Stage 1 start, once the user's install is known. Remaining open: GPU minimum, C++/Blueprint familiarity, who builds.
+- Platform: Windows 10/11 PC only for now; consoles are a possible later port, mobile/Mac/browser out of scope. Engine is free to download (check Epic's current royalty terms).
+- Workflow: user builds/tests on their PC. Preferred setup is Claude Code installed locally in the UE project folder so builds/tests can be run from the command line; the cloud session can only write code and docs.
 - Context: The repository was empty (no engine project, no Unreal/Unity install). The session runs in a Linux cloud container with Node 22 only; no GPU, no engine editor. Target hardware is not yet stated.
 - Options: Unreal Engine 5, Unity (6 LTS), keep-existing (n/a, nothing exists).
 - Decision (provisional): **Unreal Engine 5 (latest stable 5.x at Stage 1 start; pin the exact version then)**, using C++ for vessel physics/core systems and Blueprints for content wiring.
