@@ -1,9 +1,11 @@
 # Known Issues and Risks
 
 ## Open issues
-- No game implementation exists; the repo holds specs and docs only.
-- Engine and target hardware unconfirmed (D-001 is provisional).
-- The cloud container cannot build or run Unreal or Unity, so engine builds/tests must be run by the user or on a configured machine.
+- Frame rate on the user's GTX 770 is unmeasured; the water grid (360x360) and pixel ratio may need tuning.
+- Boat, port and islands are crude placeholder primitives; no wake/foam, no audio.
+- No touch/mobile controls. Collision uses simple circles/rects (boat can clip visually into the pier edge).
+- Docking is not implemented (Stage 2).
+- Engine switched from UE5 to browser (D-005); risks R1, R7, R8 below were written for UE5.
 
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |

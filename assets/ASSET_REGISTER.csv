@@ -1,0 +1,6 @@
+asset_name,asset_type,creator_or_vendor,source_url,license,attribution_required,commercial_use_allowed,modification_allowed,proof_or_notes,status
+Three.js (library),code library,mrdoob and contributors,https://threejs.org,MIT,yes (keep license notice),yes,yes,Bundled in dist/index.html; include MIT notice in credits at Stage 9,in use
+esbuild (build tool),dev tool,Evan Wallace,https://esbuild.github.io,MIT,no (dev only),yes,yes,Not shipped,in use
+All 3D shapes (boat/port/islands/buoys),placeholder geometry,project (generated in code),n/a,original,no,yes,yes,PLACEHOLDER primitives built from boxes/cylinders in src/render/scene.js,temporary
+Water and sky shaders,code,project,n/a,original,no,yes,yes,src/render/water.js and sky.js,in use
+Fonts,system fonts,user's OS,n/a,n/a,no,n/a,n/a,CSS system-ui stack; nothing embedded,in use

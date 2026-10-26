@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bluewater Captain</title>
+<style>
+  :root { --panel: rgba(10,26,40,.78); --text: #f2f6f9; --muted: #a9bccb; --accent: #ffd34d; --danger: #ff7a59; --ok: #5fd39a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b2234; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(4px); }
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #hud-top { position: absolute; top: 12px; left: 16px; right: 120px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  #hud-objective { font-size: 17px; font-weight: 600; }
+  #hud-timer { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; color: var(--accent); }
+  #hud-bottom { position: absolute; bottom: 16px; left: 16px; display: flex; gap: 12px; align-items: stretch; }
+  .stat { min-width: 92px; }
+  .stat .v { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat .l { font-size: 12px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  #hud-throttle { width: 120px; height: 10px; background: #1d3a50; border-radius: 5px; overflow: hidden; margin-top: 6px; }
+  #hud-throttle-fill { height: 100%; width: 0; background: var(--ok); }
+  #hud-throttle-fill.reverse { background: var(--danger); }
+  #hud-compass { width: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #hud-arrow { width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-bottom: 30px solid var(--accent); transition: transform .08s linear; }
+  #hud-warning { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); padding: 8px 18px; border-radius: 8px; background: #7a2412; border: 2px solid var(--danger); font-weight: 700; opacity: 0; transition: opacity .2s; }
+  #hud-warning.show { opacity: 1; }
+  #hud-help { position: absolute; bottom: 16px; right: 16px; font-size: 13px; color: var(--muted); text-align: right; line-height: 1.6; }
+  #hud-help b { color: var(--text); }
+  #badge { position: absolute; top: 56px; right: 16px; font-size: 12px; color: var(--muted); }
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,18,30,.62); z-index: 5; padding: 16px; }
+  .overlay.hidden, .hidden { display: none; }
+  .card { background: #10283b; border: 1px solid #28506b; border-radius: 14px; padding: 28px 32px; max-width: 520px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .card h1 { margin: 0 0 4px; font-size: 30px; }
+  .card h2 { margin: 0 0 12px; font-size: 24px; }
+  .card p { color: var(--muted); line-height: 1.5; margin: 8px 0; }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 14px 0 18px; font-size: 15px; }
+  kbd { background: #1f4560; border: 1px solid #3a6a8c; border-radius: 5px; padding: 1px 7px; font-family: inherit; font-size: 13px; }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 8px; padding: 11px 22px; font-weight: 700; background: var(--accent); color: #1a1a1a; pointer-events: auto; }
+  button:hover { filter: brightness(1.08); }
+  button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  button.ghost { background: #1f4560; color: var(--text); font-weight: 600; padding: 7px 12px; font-size: 13px; }
+  #settings-btn { position: fixed; top: 14px; right: 16px; z-index: 4; }
+  #settings { position: fixed; top: 52px; right: 16px; z-index: 6; width: 250px; pointer-events: auto; }
+  #settings label { display: block; margin: 10px 0; font-size: 14px; }
+  #settings input[type=range] { width: 100%; }
+  .big { font-size: 40px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { #hud-help { display: none; } .stat .v { font-size: 24px; } }
+  @media (prefers-reduced-motion: reduce) { #hud-arrow { transition: none; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" aria-live="off">
+  <div id="hud-top">
+    <div class="panel"><div id="hud-objective">-</div></div>
+    <div class="panel"><div id="hud-timer">--:--</div></div>
+  </div>
+  <div id="hud-warning" role="alert"></div>
+  <div id="badge">Stage 1 prototype &middot; placeholder art</div>
+  <div id="hud-bottom">
+    <div class="panel stat"><div class="v" id="hud-speed">0.0</div><div class="l">knots</div>
+      <div id="hud-throttle"><div id="hud-throttle-fill"></div></div></div>
+    <div class="panel stat"><div class="v" id="hud-heading">000</div><div class="l">heading &deg;</div></div>
+    <div class="panel stat" id="hud-compass"><div id="hud-arrow"></div><div class="l" style="margin-top:6px">next mark</div></div>
+  </div>
+  <div id="hud-help" class="panel"><b>W/S</b> throttle &middot; <b>A/D</b> steer<br><b>R</b> respawn &middot; <b>Drag</b> look</div>
+</div>
+
+<button id="settings-btn" class="ghost" aria-haspopup="true">Settings</button>
+<div id="settings" class="panel hidden">
+  <label>Camera sensitivity<input id="set-sens" type="range" min="0.2" max="3" step="0.1"></label>
+  <label><input id="set-low" type="checkbox"> Low graphics (faster)</label>
+  <label><input id="set-calm" type="checkbox"> Reduce camera motion</label>
+</div>
+
+<div id="start" class="overlay hidden">
+  <div class="card">
+    <h1>Bluewater Captain</h1>
+    <p>Stage 1 prototype: take the harbor skiff out of port and sail the marked route. All art is temporary placeholder.</p>
+    <div class="keys">
+      <span><kbd>W</kbd> <kbd>&uarr;</kbd></span><span>Throttle forward</span>
+      <span><kbd>S</kbd> <kbd>&darr;</kbd></span><span>Slow down / reverse</span>
+      <span><kbd>A</kbd> <kbd>D</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Steer (needs some speed)</span>
+      <span><kbd>R</kbd></span><span>Respawn at last checkpoint</span>
+      <span>Mouse drag</span><span>Look around</span>
+      <span>Gamepad</span><span>Stick steer, triggers throttle, Y respawn</span>
+    </div>
+    <button id="start-btn">Start sailing (Enter)</button>
+  </div>
+</div>
+
+<div id="result" class="overlay hidden">
+  <div class="card">
+    <h2>Route complete</h2>
+    <p>Time</p><div class="big" id="result-time">0:00.0</div>
+    <p>Collisions: <b id="result-hits">0</b></p>
+    <button id="again-btn">Sail again (Enter)</button>
+  </div>
+</div>
+
+<script src="bundle.js"></script>
+</body>
+</html>

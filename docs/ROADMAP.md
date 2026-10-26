@@ -13,13 +13,13 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 
 ## Stage 1 — Playable sailing prototype
 **Proposed acceptance criteria (for approval at the Stage 0 gate):**
-1. Project opens and builds from README instructions on the approved engine/version.
+1. Project builds from README instructions (Node + `npm run build`) and plays in a browser (engine: Three.js, see D-005).
 2. One 2 km cell with one simple port, labeled placeholder assets, basic water and sky.
 3. One small motorboat: throttle, reverse, steering with visible inertia; chase camera with adjustable sensitivity.
 4. Collision with shore/dock/buoys is detected; respawn at last safe point on demand or after grounding.
 5. One route with start and finish markers; reaching the finish shows a simple completion message and time.
 6. Frame rate meets the Stage 0 target on the agreed minimum hardware (measured, recorded in STATUS.md).
-7. Unit/automation tests for vessel movement math (accel, drag, turn rate) pass; manual drive checklist completed.
+7. Unit tests for vessel movement, collision and route logic pass; manual drive checklist (docs/MANUAL_TESTS.md) completed by the user.
 **Exclusions:** missions board, licenses, saves, multiple vessels, weather, waves beyond basic, multiple ports, audio polish, menus beyond start/quit.
 
 - One test sea area, one simple port, one small boat.

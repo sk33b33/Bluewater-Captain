@@ -15,6 +15,8 @@ Create a 3D maritime career and ship-command game tentatively titled **Bluewater
 9. Maintain `docs/STATUS.md`, `docs/DECISIONS.md`, and `docs/KNOWN_ISSUES.md`.
 10. Ask before making major engine, platform, monetization, multiplayer, or scope changes.
 
+> **Update (2026-10-26):** the user chose a browser game (Three.js) because of GTX 770-class hardware; see `docs/DECISIONS.md` D-005. Engine-specific text below is historical.
+
 ## Initial technical decision
 At Stage 0, compare **Unreal Engine 5** and **Unity** against the project's needs and recommend one. Do not silently assume the engine. Default recommendation: Unreal Engine 5 for high-fidelity ocean visuals and large vessels, unless the target hardware or team skill makes Unity more practical. If the workspace is already initialized with an engine, evaluate that first and avoid unnecessary migration.
 

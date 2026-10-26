@@ -2,7 +2,7 @@
 
 Record each decision with date, context, options, decision, and consequences.
 
-## D-001 — Engine choice (PROVISIONAL, awaiting user approval)
+## D-001 — Engine choice: Unreal Engine 5 (SUPERSEDED by D-005)
 - Date: 2026-10-26
 - Status: **ACCEPTED by user (2026-10-26): Unreal Engine 5, Windows PC only.** Exact UE version to be pinned at Stage 1 start, once the user's install is known. Remaining open: GPU minimum, C++/Blueprint familiarity, who builds.
 - Platform: Windows 10/11 PC only for now; consoles are a possible later port, mobile/Mac/browser out of scope. Engine is free to download (check Epic's current royalty terms).
@@ -22,3 +22,11 @@ Record each decision with date, context, options, decision, and consequences.
 
 ## D-004 — Fictional vessels by default (ACCEPTED, from kit)
 - Titanic / Black Pearl-style ships are Stage 9, rights-dependent. Early content is original.
+
+## D-005 — Browser game with Three.js (ACCEPTED by user, 2026-10-26)
+- Context: after choosing UE5, the user disclosed a GTX 770 (2013, 2 GB-class). UE5 is not realistically usable on it, and the cloud session cannot run UE5 at all. User chose the browser option.
+- Options considered: UE5 (needs GPU upgrade), Unity (lighter, still a stretch, local install), browser game.
+- Decision: **Three.js (WebGL) + plain JavaScript (ES modules), bundled with esbuild into a single `dist/index.html`.** No runtime services, no network dependencies, no accounts.
+- Why: runs on the user's GPU at modest settings; the cloud session can build, unit-test, and screenshot it headlessly; the user plays by opening a link or file with nothing to install.
+- Consequences: water/ship fidelity is capped well below UE5 (stylized, simple meshes); large vessels and many ports in later stages need LOD and budget discipline; no console path. Simulation is engine-agnostic JS (`src/sim/`), so a later engine port stays possible.
+- Hardware target is now: GTX 770-class GPU, 1080p, 30 fps on Low-graphics, 60 fps desired (to be measured on the user's PC).

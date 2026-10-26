@@ -103,3 +103,16 @@ Follow the system boundaries listed above. Specific choices:
 - [x] Risk register (KNOWN_ISSUES) and asset strategy (§5).
 - [x] Stage 1 scope and acceptance criteria (ROADMAP).
 - [ ] **User approval of architecture and Stage 1 scope (pending).**
+
+
+---
+
+# Stage 1 Update: browser architecture (supersedes UE5 sections above, see D-005)
+
+- **Stack:** Three.js r160 (WebGL), vanilla JS ES modules, esbuild bundle, Node `node:test` for unit tests. Only dependencies: `three`, `esbuild` (dev).
+- **Layout:** `src/sim/` (pure simulation: `vessel.js`, `waves.js`, `world.js`, `route.js`; no DOM/WebGL), `src/render/` (water/sky shaders, placeholder meshes), `src/ui/` (HUD), `src/input.js`, `src/main.js` (loop, camera, settings). `scripts/build.mjs` produces `dist/index.html`.
+- **Loop:** fixed 60 Hz simulation step with accumulator, render every frame.
+- **Water:** shader displaces a 2600 m grid with a 3-wave sum; `getWaterHeight(x, z, t)` in `waves.js` uses the same wave constants for buoyancy. Stage 5 can replace this behind the same function.
+- **Collision:** hull = two circles; obstacles are circles/rects; push-out plus speed-into-surface removal.
+- **Hardware assumptions:** GTX 770-class GPU, 1080p. "Low graphics" option renders at 0.75 pixel ratio. Frame rate on the user's machine is not yet measured.
+- **Tests:** `npm test` (19 unit tests, incl. an autopilot that completes the route); `tests/e2e/smoke.cjs` (headless Chromium load/drive check).
