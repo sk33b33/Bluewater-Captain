@@ -7,6 +7,7 @@ import { createWater } from './render/water.js';
 import { buildStatic, buildBoat, buildBuoys, updateBuoys, poseBoat, addLights } from './render/scene.js';
 import { createInput } from './input.js';
 import { createHud } from './ui/hud.js';
+import { setupTouchControls } from './ui/touch.js';
 
 const STEP = 1 / 60;
 const settings = loadSettings();
@@ -41,6 +42,7 @@ applyQuality();
 // ---- game state
 const input = createInput();
 const hud = createHud();
+const touchUi = setupTouchControls(input);
 const obstacles = staticObstacles();
 // Buoys are small solid obstacles too.
 for (const g of buoys.gates) for (const p of g.positions) obstacles.push({ type: 'circle', name: 'Buoy', cx: p.x, cz: p.z, r: BUOY_RADIUS });
@@ -65,6 +67,7 @@ function placeVessel(p) {
   camHeading = p.heading;
   camOffset = 0;
   stuckTime = 0;
+  if (touchUi) touchUi.reset();
 }
 
 function resetRun() {
@@ -89,13 +92,21 @@ document.getElementById('start-btn').addEventListener('click', startPlaying);
 document.getElementById('again-btn').addEventListener('click', () => { resetRun(); startPlaying(); });
 
 // ---- camera drag + settings UI
-canvas.addEventListener('pointerdown', (e) => { dragging = true; canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointerup', () => { dragging = false; idleSince = performance.now(); });
+let dragId = null, lastX = 0, lastY = 0;
+canvas.addEventListener('pointerdown', (e) => {
+  if (dragId !== null) return;
+  dragId = e.pointerId; dragging = true; lastX = e.clientX; lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+const endDrag = (e) => { if (e.pointerId === dragId) { dragId = null; dragging = false; idleSince = performance.now(); } };
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('pointermove', (e) => {
-  if (!dragging) return;
+  if (e.pointerId !== dragId) return;
   const k = 0.005 * settings.sensitivity;
-  camOffset -= e.movementX * k;
-  camPitch = Math.max(0.05, Math.min(1.0, camPitch + e.movementY * k));
+  camOffset -= (e.clientX - lastX) * k;
+  camPitch = Math.max(0.05, Math.min(1.0, camPitch + (e.clientY - lastY) * k));
+  lastX = e.clientX; lastY = e.clientY;
 });
 
 const sens = document.getElementById('set-sens');

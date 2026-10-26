@@ -25,6 +25,7 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 | R | Respawn at last checkpoint |
 | Mouse drag | Look around |
 | Gamepad | Left stick steer, triggers throttle, Y respawn |
+| Touch (phones/tablets) | Left lever: throttle (stays where set; Stop button zeroes it). Bottom-right bar: steer (springs back). Drag the water to look. Respawn button. |
 | Settings button | Camera sensitivity, low graphics, reduce camera motion |
 
 ## Test

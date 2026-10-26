@@ -11,10 +11,13 @@ Browser game (Three.js, D-005): one 2 km sea cell, a walled harbor with pier, th
 - `npm run build`: produces `dist/index.html` (482 KB).
 - Headless Chromium (software rendering): page loads with no console errors, start screen shows, Enter/click starts, W accelerates the boat. Screenshots were reviewed by eye.
 
+## Added after first user test
+- On-screen touch controls (throttle lever, steering bar, stop, respawn) because the user tested on a phone and had no controls. Verified with emulated touch drags in headless Chromium (`tests/e2e/touch.cjs`).
+
 ## NOT verified
 - Frame rate on a GTX 770 or any real GPU (software rendering here cannot measure it).
 - Real keyboard/mouse/gamepad feel; handling tuning; camera comfort.
-- Firefox/Edge/Safari; touch devices (not supported in Stage 1).
+- Firefox/Edge/Safari; touch controls on a real phone (feel, thumb reach, iOS Safari behaviour).
 - The manual checklist in `docs/MANUAL_TESTS.md` has not been run by a human.
 
 ## Next action (needs the user)

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bluewater Captain</title>
 <style>
   :root { --panel: rgba(10,26,40,.78); --text: #f2f6f9; --muted: #a9bccb; --accent: #ffd34d; --danger: #ff7a59; --ok: #5fd39a; }
@@ -13,7 +13,7 @@
   #hud { position: fixed; inset: 0; pointer-events: none; }
   #hud-top { position: absolute; top: 12px; left: 16px; right: 120px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
   #hud-objective { font-size: 17px; font-weight: 600; }
-  #hud-timer { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; color: var(--accent); }
+  #hud-timer { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; color: var(--accent); }
   #hud-bottom { position: absolute; bottom: 16px; left: 16px; display: flex; gap: 12px; align-items: stretch; }
   .stat { min-width: 92px; }
   .stat .v { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -45,6 +45,36 @@
   #settings label { display: block; margin: 10px 0; font-size: 14px; }
   #settings input[type=range] { width: 100%; }
   .big { font-size: 40px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  #touch { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+  .t-ctl { position: absolute; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #t-throttle { left: max(18px, env(safe-area-inset-left, 0px)); bottom: max(18px, env(safe-area-inset-bottom, 0px)); width: 76px; height: 200px; background: var(--panel); border: 2px solid #3a6a8c; border-radius: 38px; }
+  #t-throttle::before { content: ""; position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; background: #5d87a3; }
+  #t-throttle .lab { position: absolute; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+  #t-throttle .up { top: 10px; } #t-throttle .down { bottom: 10px; }
+  #t-throttle-thumb, #t-steer-thumb { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.4); transform: translate(-50%, -50%); pointer-events: none; }
+  #t-throttle-thumb { left: 50%; top: 50%; }
+  #t-steer { right: max(18px, env(safe-area-inset-right, 0px)); bottom: max(18px, env(safe-area-inset-bottom, 0px)); width: min(46vw, 260px); height: 76px; background: var(--panel); border: 2px solid #3a6a8c; border-radius: 38px; }
+  #t-steer::before { content: ""; position: absolute; top: 14px; bottom: 14px; left: 50%; width: 2px; background: #5d87a3; }
+  #t-steer-thumb { left: 50%; top: 50%; }
+  #t-steer .lab { position: absolute; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+  #t-steer .l { left: 14px; } #t-steer .r { right: 14px; }
+  .t-btn { position: absolute; pointer-events: auto; touch-action: none; border-radius: 999px; padding: 10px 16px; font-size: 14px; background: #1f4560; color: var(--text); border: 1px solid #3a6a8c; }
+  #t-stop { left: calc(max(18px, env(safe-area-inset-left, 0px)) + 92px); bottom: max(18px, env(safe-area-inset-bottom, 0px)); }
+  #t-respawn { right: max(18px, env(safe-area-inset-right, 0px)); bottom: calc(max(18px, env(safe-area-inset-bottom, 0px)) + 92px); }
+  body.is-touch #hud-help { display: none; }
+  body.is-touch .keys, body.is-touch .kbd-note { display: none; }
+  body.is-touch #hud-bottom { bottom: auto; top: 112px; left: 16px; gap: 8px; }
+  body.is-touch #badge { display: none; }
+  body.is-touch #hud-objective { font-size: 15px; }
+  body.is-touch #hud-warning { top: 190px; }
+  body.is-touch .stat { min-width: 0; padding: 6px 10px; }
+  body.is-touch .stat .v { font-size: 20px; }
+  body.is-touch #hud-compass { width: 64px; }
+  body.is-touch #hud-compass .l { display: none; }
+  body.is-touch #hud-throttle { width: 70px; }
+  .touch-note { display: none; }
+  body.is-touch .touch-note { display: block; }
+  @media (max-height: 460px) { #t-throttle { height: 150px; } body.is-touch #hud-bottom { display: none; } }
   @media (max-width: 640px) { #hud-help { display: none; } .stat .v { font-size: 24px; } }
   @media (prefers-reduced-motion: reduce) { #hud-arrow { transition: none; } }
 </style>
@@ -75,10 +105,18 @@
   <label><input id="set-calm" type="checkbox"> Reduce camera motion</label>
 </div>
 
+<div id="touch" class="hidden" aria-label="On-screen controls">
+  <div id="t-throttle" class="t-ctl" role="slider" aria-label="Throttle"><span class="lab up">AHEAD</span><span class="lab down">ASTERN</span><div id="t-throttle-thumb"></div></div>
+  <button id="t-stop" class="t-btn" type="button">Stop</button>
+  <div id="t-steer" class="t-ctl" role="slider" aria-label="Steering"><span class="lab l">PORT</span><span class="lab r">STBD</span><div id="t-steer-thumb"></div></div>
+  <button id="t-respawn" class="t-btn" type="button">Respawn</button>
+</div>
+
 <div id="start" class="overlay hidden">
   <div class="card">
     <h1>Bluewater Captain</h1>
     <p>Stage 1 prototype: take the harbor skiff out of port and sail the marked route. All art is temporary placeholder.</p>
+    <p class="touch-note">Touch: slide the left lever up for throttle (it stays where you leave it), slide the bottom-right bar to steer, drag the water to look around. Steering needs some speed.</p>
     <div class="keys">
       <span><kbd>W</kbd> <kbd>&uarr;</kbd></span><span>Throttle forward</span>
       <span><kbd>S</kbd> <kbd>&darr;</kbd></span><span>Slow down / reverse</span>

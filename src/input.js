@@ -10,6 +10,7 @@ export function createInput(target = window) {
   target.addEventListener('keyup', (e) => keys.delete(e.code));
   target.addEventListener('blur', () => keys.clear());
 
+  const touch = { throttle: 0, steer: 0 };
   const dead = (v) => (Math.abs(v) < 0.15 ? 0 : v);
 
   return {
@@ -20,6 +21,8 @@ export function createInput(target = window) {
       if (keys.has('KeyS') || keys.has('ArrowDown')) throttle -= 1;
       if (keys.has('KeyD') || keys.has('ArrowRight')) steer += 1;
       if (keys.has('KeyA') || keys.has('ArrowLeft')) steer -= 1;
+      throttle += touch.throttle;
+      steer += touch.steer;
       const pad = (navigator.getGamepads && navigator.getGamepads()[0]) || null;
       if (pad) {
         steer += dead(pad.axes[0] || 0);
@@ -36,6 +39,9 @@ export function createInput(target = window) {
     wasPressed(code) {
       return pressed.delete(code);
     },
+    touch,
+    press(code) { pressed.add(code); },
+    resetTouch() { touch.throttle = 0; touch.steer = 0; },
     clearPressed() { pressed.clear(); },
     isDown(code) { return keys.has(code); },
   };

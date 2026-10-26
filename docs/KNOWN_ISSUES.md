@@ -3,7 +3,7 @@
 ## Open issues
 - Frame rate on the user's GTX 770 is unmeasured; the water grid (360x360) and pixel ratio may need tuning.
 - Boat, port and islands are crude placeholder primitives; no wake/foam, no audio.
-- No touch/mobile controls. Collision uses simple circles/rects (boat can clip visually into the pier edge).
+- Touch controls added after Stage 1 on user request; verified only with headless phone emulation (390x844), not on a real phone. Landscape phones hide the stats row. Collision uses simple circles/rects (boat can clip visually into the pier edge).
 - Docking is not implemented (Stage 2).
 - Engine switched from UE5 to browser (D-005); risks R1, R7, R8 below were written for UE5.
 
