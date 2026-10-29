@@ -1,6 +1,6 @@
 # Bluewater Captain
 
-A 3D maritime career game that runs in your browser. **Stage 1 prototype**: sail a small boat out of a harbor and complete a marked route. All art is temporary placeholder geometry.
+A 3D maritime career game that runs in your browser. **Stage 2 prototype**: pick a contract on the mission board, sail it between two ports, dock at the pier and get scored. All art is temporary placeholder geometry.
 
 ## Run it
 Requires [Node.js](https://nodejs.org) 18+.
@@ -22,7 +22,8 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 | W / Up | Throttle forward |
 | S / Down | Slow down, then reverse |
 | A, D / Left, Right | Steer (needs some speed) |
-| R | Respawn at last checkpoint |
+| R | Respawn at last checkpoint (costs a few navigation points) |
+| Esc / Menu button | Pause: resume, restart or abort the mission, settings |
 | Mouse drag | Look around |
 | Gamepad | Left stick steer, triggers throttle, Y respawn |
 | Touch (phones/tablets) | Left lever: throttle (stays where set; Stop button zeroes it). Bottom-right bar: steer (springs back). Drag the water to look. Respawn button. |
@@ -30,8 +31,9 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 
 ## Test
 ```
-npm test                                   # 19 unit tests (vessel, collision, route, waves)
-node tests/e2e/smoke.cjs                   # optional headless browser smoke test (needs Playwright)
+npm test                                   # 43 unit tests (vessel, collision, route, missions, docking, scoring, profile)
+node tests/e2e/mission.cjs                 # optional headless end-to-end mission loop (needs Playwright + npm run build)
+node tests/e2e/touch.cjs                   # optional phone-emulation touch test
 ```
 Manual checklist: `docs/MANUAL_TESTS.md`.
 

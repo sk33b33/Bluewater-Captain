@@ -40,10 +40,43 @@
   button:hover { filter: brightness(1.08); }
   button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
   button.ghost { background: #1f4560; color: var(--text); font-weight: 600; padding: 7px 12px; font-size: 13px; }
-  #settings-btn { position: fixed; top: 14px; right: 16px; z-index: 4; }
-  #settings { position: fixed; top: 52px; right: 16px; z-index: 6; width: 250px; pointer-events: auto; }
-  #settings label { display: block; margin: 10px 0; font-size: 14px; }
-  #settings input[type=range] { width: 100%; }
+  body:not(.playing) #hud, body:not(.playing) #touch, body:not(.playing) #menu-btn { display: none; }
+  #menu-btn { position: fixed; top: 14px; right: 16px; z-index: 4; }
+  .settings-block label { display: block; margin: 12px 0; font-size: 15px; color: var(--text); }
+  .settings-block input[type=range] { width: 100%; }
+  .card.wide { max-width: 640px; max-height: calc(100% - 24px); overflow-y: auto; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+  .row.end { justify-content: flex-end; }
+  .profile { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin: 4px 0 14px; }
+  .profile b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .mlist { display: grid; gap: 10px; }
+  .mcard { text-align: left; display: grid; gap: 4px; width: 100%; background: #16364d; color: var(--text); border: 1px solid #2f5d7c; border-radius: 10px; padding: 12px 14px; font-weight: 500; }
+  .mcard:hover { border-color: var(--accent); filter: none; }
+  .mcard .t { font-weight: 700; font-size: 17px; }
+  .mcard .m { font-size: 13px; color: var(--muted); display: flex; gap: 6px 14px; flex-wrap: wrap; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #1f4560; color: var(--text); }
+  .badge.grade { background: var(--accent); color: #1a1a1a; }
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0; font-size: 15px; }
+  dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; }
+  table.score { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
+  table.score td { padding: 6px 4px; border-bottom: 1px solid #28506b; vertical-align: top; }
+  table.score td.pts { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+  table.score td.note { color: var(--muted); }
+  .grade-big { font-size: 56px; font-weight: 800; line-height: 1; color: var(--accent); }
+  .reward { font-size: 17px; margin: 8px 0; } .reward b { color: var(--ok); font-variant-numeric: tabular-nums; }
+  .fail-reason { font-size: 17px; margin: 10px 0; color: var(--danger); font-weight: 600; }
+  button.danger { background: #7a2412; color: var(--text); }
+  #hud-limit { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  #hud-timer.late { color: var(--danger); }
+  #hud-hull-box.low .v { color: var(--danger); }
+  #hud-dock { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); width: min(340px, 60vw); text-align: center; }
+  #dock-title { font-size: 13px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+  .chips { display: flex; gap: 6px; justify-content: center; margin: 6px 0; flex-wrap: wrap; }
+  .chip { font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 2px solid; }
+  .chip.good { border-color: var(--ok); color: var(--ok); } .chip.bad { border-color: var(--danger); color: var(--danger); }
+  #dock-hint { font-size: 14px; min-height: 1.3em; }
+  #dock-bar { height: 8px; background: #1d3a50; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  #dock-fill { height: 100%; width: 0; background: var(--ok); }
   .big { font-size: 40px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
   #touch { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
   .t-ctl { position: absolute; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -66,7 +99,8 @@
   body.is-touch #hud-bottom { bottom: auto; top: 112px; left: 16px; gap: 8px; }
   body.is-touch #badge { display: none; }
   body.is-touch #hud-objective { font-size: 15px; }
-  body.is-touch #hud-warning { top: 190px; }
+  body.is-touch #hud-warning { top: 330px; }
+  body.is-touch #hud-dock { bottom: auto; top: 192px; width: min(340px, 90vw); }
   body.is-touch .stat { min-width: 0; padding: 6px 10px; }
   body.is-touch .stat .v { font-size: 20px; }
   body.is-touch #hud-compass { width: 64px; }
@@ -74,7 +108,7 @@
   body.is-touch #hud-throttle { width: 70px; }
   .touch-note { display: none; }
   body.is-touch .touch-note { display: block; }
-  @media (max-height: 460px) { #t-throttle { height: 150px; } body.is-touch #hud-bottom { display: none; } }
+  @media (max-height: 460px) { #t-throttle { height: 150px; } body.is-touch #hud-bottom { display: none; } body.is-touch #hud-dock { top: 70px; } }
   @media (max-width: 640px) { #hud-help { display: none; } .stat .v { font-size: 24px; } }
   @media (prefers-reduced-motion: reduce) { #hud-arrow { transition: none; } }
 </style>
@@ -85,25 +119,27 @@
 <div id="hud" aria-live="off">
   <div id="hud-top">
     <div class="panel"><div id="hud-objective">-</div></div>
-    <div class="panel"><div id="hud-timer">--:--</div></div>
+    <div class="panel"><div id="hud-timer">--:--</div><div id="hud-limit"></div></div>
   </div>
   <div id="hud-warning" role="alert"></div>
-  <div id="badge">Stage 1 prototype &middot; placeholder art</div>
+  <div id="badge">Stage 2 prototype &middot; placeholder art</div>
   <div id="hud-bottom">
     <div class="panel stat"><div class="v" id="hud-speed">0.0</div><div class="l">knots</div>
       <div id="hud-throttle"><div id="hud-throttle-fill"></div></div></div>
     <div class="panel stat"><div class="v" id="hud-heading">000</div><div class="l">heading &deg;</div></div>
+    <div class="panel stat" id="hud-hull-box"><div class="v" id="hud-hull">100%</div><div class="l">hull</div></div>
     <div class="panel stat" id="hud-compass"><div id="hud-arrow"></div><div class="l" style="margin-top:6px">next mark</div></div>
   </div>
-  <div id="hud-help" class="panel"><b>W/S</b> throttle &middot; <b>A/D</b> steer<br><b>R</b> respawn &middot; <b>Drag</b> look</div>
+  <div id="hud-dock" class="panel hidden">
+    <div id="dock-title">Dock</div>
+    <div class="chips"><span id="dk-pos" class="chip">Position</span><span id="dk-spd" class="chip">Speed</span><span id="dk-ang" class="chip">Angle</span></div>
+    <div id="dock-hint"></div>
+    <div id="dock-bar"><div id="dock-fill"></div></div>
+  </div>
+  <div id="hud-help" class="panel"><b>W/S</b> throttle &middot; <b>A/D</b> steer<br><b>R</b> respawn &middot; <b>Esc</b> menu &middot; <b>Drag</b> look</div>
 </div>
 
-<button id="settings-btn" class="ghost" aria-haspopup="true">Settings</button>
-<div id="settings" class="panel hidden">
-  <label>Camera sensitivity<input id="set-sens" type="range" min="0.2" max="3" step="0.1"></label>
-  <label><input id="set-low" type="checkbox"> Low graphics (faster)</label>
-  <label><input id="set-calm" type="checkbox"> Reduce camera motion</label>
-</div>
+<button id="menu-btn" class="ghost" aria-haspopup="dialog">Menu</button>
 
 <div id="touch" class="hidden" aria-label="On-screen controls">
   <div id="t-throttle" class="t-ctl" role="slider" aria-label="Throttle"><span class="lab up">AHEAD</span><span class="lab down">ASTERN</span><div id="t-throttle-thumb"></div></div>
@@ -115,26 +151,93 @@
 <div id="start" class="overlay hidden">
   <div class="card">
     <h1>Bluewater Captain</h1>
-    <p>Stage 1 prototype: take the harbor skiff out of port and sail the marked route. All art is temporary placeholder.</p>
+    <p>Stage 2 prototype: pick a contract at the harbor mission board, sail it, dock at the pier and get scored. All art is temporary placeholder.</p>
     <p class="touch-note">Touch: slide the left lever up for throttle (it stays where you leave it), slide the bottom-right bar to steer, drag the water to look around. Steering needs some speed.</p>
     <div class="keys">
       <span><kbd>W</kbd> <kbd>&uarr;</kbd></span><span>Throttle forward</span>
-      <span><kbd>S</kbd> <kbd>&darr;</kbd></span><span>Slow down / reverse</span>
+      <span><kbd>S</kbd> <kbd>&darr;</kbd></span><span>Slow down / reverse (use it to brake when docking)</span>
       <span><kbd>A</kbd> <kbd>D</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Steer (needs some speed)</span>
       <span><kbd>R</kbd></span><span>Respawn at last checkpoint</span>
+      <span><kbd>Esc</kbd></span><span>Pause menu</span>
       <span>Mouse drag</span><span>Look around</span>
       <span>Gamepad</span><span>Stick steer, triggers throttle, Y respawn</span>
     </div>
-    <button id="start-btn">Start sailing (Enter)</button>
+    <button id="start-btn">Open mission board (Enter)</button>
+  </div>
+</div>
+
+<div id="board" class="overlay hidden">
+  <div class="card wide">
+    <h2>Mission board</h2>
+    <div class="profile">
+      <span>Credits <b id="p-credits">0</b></span><span>Reputation <b id="p-rep">0</b></span><span>XP <b id="p-xp">0</b></span>
+    </div>
+    <div id="board-list" class="mlist"></div>
+    <div class="row">
+      <button id="board-settings" class="ghost">Settings</button>
+      <button id="reset-btn" class="ghost">Reset progress</button>
+      <span id="reset-note" class="hidden" style="font-size:13px;color:var(--danger)">Click Reset progress again to erase credits and best scores.</span>
+    </div>
+  </div>
+</div>
+
+<div id="briefing" class="overlay hidden">
+  <div class="card wide">
+    <h2 id="br-title">Mission</h2>
+    <p id="br-summary"></p>
+    <dl class="facts">
+      <dt>Route</dt><dd id="br-route"></dd>
+      <dt>Cargo</dt><dd id="br-cargo"></dd>
+      <dt>Deadline</dt><dd id="br-deadline"></dd>
+      <dt>Risk</dt><dd id="br-risk"></dd>
+      <dt>Reward</dt><dd id="br-reward"></dd>
+      <dt>Vessel</dt><dd id="br-vessel"></dd>
+      <dt>License</dt><dd id="br-license"></dd>
+      <dt>Forecast</dt><dd id="br-weather"></dd>
+    </dl>
+    <p id="br-dock-tip"></p>
+    <div class="row">
+      <button id="br-depart">Depart (Enter)</button>
+      <button id="br-back" class="ghost">Back to board</button>
+    </div>
   </div>
 </div>
 
 <div id="result" class="overlay hidden">
+  <div class="card wide">
+    <h2 id="res-title">Mission complete</h2>
+    <div id="res-ok">
+      <div class="grade-big" id="res-grade">A</div>
+      <div id="res-total" style="color:var(--muted)"></div>
+      <table class="score"><tbody id="res-rows"></tbody></table>
+      <div class="reward">Reward <b id="res-reward">0</b> credits &middot; Reputation +<b id="res-rep">0</b> &middot; XP +<b id="res-xp">0</b></div>
+      <div id="res-best" style="color:var(--muted);font-size:14px"></div>
+    </div>
+    <div id="res-fail" class="hidden">
+      <div class="fail-reason" id="res-reason"></div>
+      <p>No payment for a failed mission. Nothing is lost: retry or pick another contract.</p>
+    </div>
+    <div class="row">
+      <button id="res-board">Mission board (Enter)</button>
+      <button id="res-retry" class="ghost">Retry mission</button>
+    </div>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden" role="dialog" aria-labelledby="pause-title">
   <div class="card">
-    <h2>Route complete</h2>
-    <p>Time</p><div class="big" id="result-time">0:00.0</div>
-    <p>Collisions: <b id="result-hits">0</b></p>
-    <button id="again-btn">Sail again (Enter)</button>
+    <h2 id="pause-title">Paused</h2>
+    <div id="pause-actions" class="row" style="margin-top:0">
+      <button id="pause-resume">Resume (Esc)</button>
+      <button id="pause-restart" class="ghost">Restart mission</button>
+      <button id="pause-abort" class="danger">Abort mission</button>
+    </div>
+    <div class="settings-block">
+      <label>Camera sensitivity<input id="set-sens" type="range" min="0.2" max="3" step="0.1"></label>
+      <label><input id="set-low" type="checkbox"> Low graphics (faster)</label>
+      <label><input id="set-calm" type="checkbox"> Reduce camera motion</label>
+    </div>
+    <div class="row"><button id="pause-close" class="ghost hidden">Close</button></div>
   </div>
 </div>
 

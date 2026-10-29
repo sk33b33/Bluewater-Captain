@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { LAND, BREAKWATERS, DOCKS, ISLANDS, ROUTE } from '../sim/world.js';
+import { LAND, BREAKWATERS, DOCKS, ISLANDS } from '../sim/world.js';
+import { gateBuoys } from '../data/missions.js';
 import { getWaterHeight } from '../sim/waves.js';
 
 // All meshes here are PLACEHOLDER primitives (see assets/ASSET_REGISTER.csv).
@@ -57,31 +58,68 @@ export function buildBoat() {
   return outer;
 }
 
-export function buildBuoys() {
+export function buildBuoys(waypoints) {
   const group = new THREE.Group();
   const gates = [];
-  ROUTE.forEach((cp, i) => {
-    const next = ROUTE[Math.min(i + 1, ROUTE.length - 1)];
-    const prev = ROUTE[Math.max(i - 1, 0)];
-    // Gate axis perpendicular to the route direction through this checkpoint.
-    let dx = next.x - prev.x, dz = next.z - prev.z;
-    if (i === 0) { dx = 1; dz = 0; }
-    const len = Math.hypot(dx, dz) || 1;
-    const px = -dz / len, pz = dx / len;
-    const spread = 18;
+  waypoints.forEach((_, i) => {
+    const [a, b] = gateBuoys(waypoints, i);
     const left = makeBuoy(0xc0392b);
     const right = makeBuoy(0x2e8b57);
-    left.position.set(cp.x + px * spread, 0, cp.z + pz * spread);
-    right.position.set(cp.x - px * spread, 0, cp.z - pz * spread);
+    left.position.set(a.x, 0, a.z);
+    right.position.set(b.x, 0, b.z);
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(2.5, 2.5, 120, 16, 1, true),
       new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide })
     );
-    beam.position.set(cp.x, 60, cp.z);
+    beam.position.set(waypoints[i].x, 60, waypoints[i].z);
     group.add(left, right, beam);
     gates.push({ left, right, beam, positions: [left.position.clone(), right.position.clone()] });
   });
   return { group, gates };
+}
+
+// Translucent berth volume with corner posts and a tall beam so the destination is visible from afar.
+export function buildBerth(berth) {
+  const group = new THREE.Group();
+  group.position.set(berth.cx, 0, berth.cz);
+  group.rotation.y = -berth.heading;
+  const w = berth.halfWidth * 2;
+  const l = berth.halfLength * 2;
+  const fill = new THREE.MeshBasicMaterial({ color: 0x35d08a, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(w, 3, l), fill);
+  box.position.y = 1.5;
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x35d08a });
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), lineMat);
+  edges.position.copy(box.position);
+  group.add(box, edges);
+  const postMat = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 });
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 3.6, 8), postMat);
+      post.position.set(sx * berth.halfWidth, 1.6, sz * berth.halfLength);
+      group.add(post);
+    }
+  }
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0x35d08a, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 70, 12, 1, true), beamMat);
+  beam.position.y = 35;
+  group.add(beam);
+  const colors = { idle: 0x35d08a, near: 0xffc247, hold: 0x7dffb5 };
+  group.userData.setState = (state) => {
+    const c = colors[state] ?? colors.idle;
+    fill.color.setHex(c);
+    lineMat.color.setHex(c);
+    beamMat.color.setHex(c);
+    fill.opacity = state === 'hold' ? 0.32 : 0.16;
+  };
+  return group;
+}
+
+export function disposeObject(obj) {
+  obj.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+  });
 }
 
 function makeBuoy(color) {

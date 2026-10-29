@@ -29,6 +29,15 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** player can reliably control the boat and complete the route; build/test instructions work.
 
 ## Stage 2 — Port-to-port mission vertical slice
+**Status: implemented 2026-10-29, awaiting user testing and approval.** Acceptance criteria used:
+1. Mission board lists missions with route, cargo, deadline, reward and risk; selecting one opens a briefing (forecast, vessel, license note, docking rules).
+2. Depart, follow buoy gates, enter the destination berth, hold still and aligned for 2 s to dock.
+3. Success and failure states: success scores safety / navigation / timing / docking with a plain-language reason for each deduction; failure on hull breach, timeout (2x deadline) or abort.
+4. Reward (credits, reputation, XP) and best result per mission persist across a page reload.
+5. Mission state is robust: retry, restart, abort and a failed docking attempt (too fast / misaligned / leave the berth) never corrupt state; each run starts fresh.
+6. Two real port-to-port missions (Harbor -> Pine Isle, Pine Isle -> Harbor) plus the Stage 1 loop as a training mission.
+**Exclusions kept out:** licenses/exams (Stage 3), more vessels (Stage 4), weather (Stage 5), connected multi-port region (Stage 6), fuel, passengers, route planning screen.
+
 - One mission board and mission briefing.
 - Departure, navigation objective, destination approach, docking zone, success/failure states.
 - Simple reward and results screen.

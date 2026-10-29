@@ -13,6 +13,7 @@ export const BREAKWATERS = [
 ];
 export const DOCKS = [
   { type: 'rect', name: 'Main pier', cx: -740, cz: 150, hx: 50, hz: 5 },
+  { type: 'rect', name: 'Pine Isle pier', cx: 385, cz: 250, hx: 25, hz: 3 },
 ];
 export const ISLANDS = [
   { type: 'circle', name: 'Gull Rock', cx: 200, cz: -300, r: 60 },
@@ -48,7 +49,7 @@ export function hullCircles(s, p) {
 }
 
 // Push circle out of obstacle. Returns { nx, nz, depth } or null.
-function circleVsObstacle(c, o) {
+export function circleVsObstacle(c, o) {
   if (o.type === 'circle') {
     const dx = c.x - o.cx;
     const dz = c.z - o.cz;

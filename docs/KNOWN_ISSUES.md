@@ -4,7 +4,11 @@
 - Frame rate on the user's GTX 770 is unmeasured; the water grid (360x360) and pixel ratio may need tuning.
 - Boat, port and islands are crude placeholder primitives; no wake/foam, no audio.
 - Touch controls added after Stage 1 on user request; verified only with headless phone emulation (390x844), not on a real phone. Landscape phones hide the stats row. Collision uses simple circles/rects (boat can clip visually into the pier edge).
-- Docking is not implemented (Stage 2).
+- Docking tolerances (1.5 m/s, 25 degrees, 2 s hold) and mission deadlines/rewards are unplayed estimates; expect tuning. The boat coasts a long time at low speed, so players must reverse to brake.
+- An in-progress mission is not saved: reloading the page returns to the mission board (credits and best results are kept).
+- Profile lives in browser storage only: clearing site data or switching browser/device loses it.
+- Wave undersampling: the 7 m water grid can shimmer on the shortest (18 m) wave; revisit in Stage 5.
+- Mission start positions are teleports (no tug/undocking sequence); the boat starts inside a berth.
 - Engine switched from UE5 to browser (D-005); risks R1, R7, R8 below were written for UE5.
 
 ## Risk register

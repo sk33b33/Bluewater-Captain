@@ -30,3 +30,11 @@ Record each decision with date, context, options, decision, and consequences.
 - Why: runs on the user's GPU at modest settings; the cloud session can build, unit-test, and screenshot it headlessly; the user plays by opening a link or file with nothing to install.
 - Consequences: water/ship fidelity is capped well below UE5 (stylized, simple meshes); large vessels and many ports in later stages need LOD and budget discipline; no console path. Simulation is engine-agnostic JS (`src/sim/`), so a later engine port stays possible.
 - Hardware target is now: GTX 770-class GPU, 1080p, 30 fps on Low-graphics, 60 fps desired (to be measured on the user's PC).
+
+## D-006 — Stage 2 mission model (ACCEPTED as part of Stage 2 build, 2026-10-29)
+- Missions and berths are data (`src/data/missions.js`); the run state machine, docking check and scoring are pure code in `src/sim/mission.js` and fully unit-tested.
+- Docking: boat centre inside the berth rectangle, speed <= 1.5 m/s (about 3 kn), within 25 degrees of the pier line (either direction), held 2 s. Leaving or speeding resets the hold, so a failed attempt is simply retried.
+- Scoring (dock missions): Safety 30, Navigation 20, Timing 20, Docking 30; non-dock missions: 40/40/20. Each category shows its reason. Grades S/A/B/C/D at 90/80/65/50.
+- Failure: hull integrity 0 (damage = 4% per m/s of impact above 1 m/s), time over 2x deadline, or abort. Failed missions pay nothing.
+- Persistence: versioned profile `{version:1, credits, reputation, xp, completed}` in localStorage, validated on load; an in-progress mission is not saved (reload returns to the board). Stage 3 will own full career saves and migrate this.
+- The harbor mouth waypoint was added after the scripted-captain test showed a straight line from the entrance to the basin cut through the breakwater.

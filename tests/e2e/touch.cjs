@@ -15,6 +15,8 @@ const out = process.argv[2] || '.';
   const cdp = await ctx.newCDPSession(page);
   const touch = (type, id, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id }] });
   await page.tap('#start-btn');
+  await page.locator('.mcard').first().tap();
+  await page.tap('#br-depart');
   const box = async (sel) => page.locator(sel).boundingBox();
   const th = await box('#t-throttle');
   // Drag from lever centre to the top (full ahead), then release: lever should stay.

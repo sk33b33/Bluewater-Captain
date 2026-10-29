@@ -85,7 +85,7 @@ export function createWater(sky) {
     new THREE.PlaneGeometry(40000, 40000).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({ color: sky.fogColor })
   );
-  far.position.y = -0.8;
+  far.position.y = -6;
   const group = new THREE.Group();
   group.add(far, mesh);
   group.userData.update = (t) => { mat.uniforms.uTime.value = t; };

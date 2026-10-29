@@ -84,3 +84,10 @@ Support adjustable camera sensitivity, remappable controls where practical, subt
 
 ## Scope discipline
 No multiplayer, procedural planet, economy simulation, fully simulated ship interiors, or exhaustive fleet in the first playable version unless specifically approved later.
+
+
+## Stage 2 implementation notes: docking and scoring
+- **Docking:** stop inside the green berth beside the pier, slower than about 3 knots, within 25 degrees of the pier line, and hold for 2 seconds. A panel shows Position / Speed / Angle with check marks (not colour alone) and a hint for the one thing to fix. Reverse to brake.
+- **Scoring:** Safety (hull condition), Navigation (respawns), Timing (seconds over the deadline), Docking (distance from berth centre and angle). Every deduction is explained on the results screen.
+- **Failure:** hull breach, running past twice the deadline, or abort. No payment, no other penalty.
+- **Rewards:** credits scale from 50% to 100% of the mission reward by score; reputation and XP are recorded for the Stage 3 license system.
