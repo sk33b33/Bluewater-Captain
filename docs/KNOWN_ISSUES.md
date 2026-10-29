@@ -18,11 +18,18 @@
 - End-to-end browser tests are slow under software rendering; they passed once each after the stability fixes, so occasional timeouts are still possible.
 
 - Stage 4 estimates: vessel stats, deadline factors (1.3 and 1.1), wind strength (8 kn) and the 250-credit Skipper fee are untested by a human. The Coastal Cat may be frustrating in the harbor basin, which is only about 150 m wide.
-- Wind is a constant drift, not changing weather: no gusts, no wind effect on waves or heading (Stage 5).
+- Wind gusts and veers but still acts only as drift: it does not turn the bow (no weathervaning) and does not push a moving boat off course beyond leeway.
 - Docking speed is measured through the water, so a strong drift can carry a boat that reads as "still" out of the berth; the hold resets when it leaves.
 - Each vessel is one fixed placeholder model; the workboat's crane and the cat's windows are boxes.
 - No vessel purchase or rental: licenses unlock vessels for free.
 - Passenger Shuttle and Heavy Gear Haul score the same way as other jobs; there is no passenger comfort or cargo-shift scoring yet.
+
+- Stage 5 estimates: sea-effect constants, gust sizes, wave heights and the Auto thresholds (30 fps, 2 s windows) are untested on real hardware. On a GTX 770 the High preset may be too heavy and Medium may be borderline; run the benchmark.
+- Foam is a procedural noise effect, not simulated: it can look like soft white patches up close, especially near piers in rough seas.
+- No rain, lightning, tides or currents; weather is fixed for the whole mission. No scenery reflections or shadows in the water.
+- Auto quality only steps down; switching back to a higher preset is manual.
+- The benchmark takes over the screen for about 20 seconds and moves the boat on its own; Esc cancels.
+- The headless performance numbers are from software rendering and mean nothing for real GPUs.
 
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |

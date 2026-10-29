@@ -8,7 +8,7 @@ import { VESSELS } from '../data/vessels.js';
 import { statRows } from '../sim/handling.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz', 'fleet'];
+const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz', 'fleet', 'bench'];
 
 const FAIL_TEXT = {
   hull: 'Hull breached: the vessel took too much damage.',
@@ -47,6 +47,9 @@ export function createMenus(h) {
   $('board-licenses').addEventListener('click', () => h.onLicenses());
   $('lic-back').addEventListener('click', () => h.onBoard());
   $('board-fleet').addEventListener('click', () => h.onFleet());
+  $('bench-btn').addEventListener('click', () => h.onBenchStart());
+  $('bench-close').addEventListener('click', () => h.onBenchClose());
+  $('bench-apply').addEventListener('click', () => h.onBenchApply($('bench-apply').dataset.id));
   $('fleet-back').addEventListener('click', () => h.onBoard());
   $('fleet-licenses').addEventListener('click', () => h.onLicenses());
   $('br-vessel-select').addEventListener('change', (e) => h.onPickVessel(e.target.value));
@@ -115,7 +118,7 @@ export function createMenus(h) {
       show('board');
     },
 
-    // ctx: { dockName, access, exam: {fee, minScore, maxCollisions} | null, licenseName, vessels: [usable], vessel: chosen | null, deadline }
+    // ctx: { dockName, access, exam: {fee, minScore, maxCollisions} | null, licenseName, vessels: [usable], vessel: chosen | null, deadline, forecast, seaText, tip }
     showBriefing(m, ctx) {
       $('br-title').textContent = m.title;
       $('br-summary').textContent = m.summary;
@@ -141,7 +144,8 @@ export function createMenus(h) {
         $('br-vessel').textContent = ctx.vessel ? `${ctx.vessel.name} (${VESSEL_CLASSES[ctx.vessel.class]})` : `Needs: ${m.vesselClasses.map((c) => VESSEL_CLASSES[c]).join(' or ')}`;
       }
       $('br-license').textContent = m.kind === 'training' ? 'None: sailing under instruction' : m.kind === 'exam' ? `Exam for the ${ctx.licenseName}` : ctx.licenseName;
-      $('br-weather').textContent = m.weather;
+      $('br-weather').textContent = ctx.forecast;
+      $('br-sea').textContent = [ctx.seaText, ctx.tip].filter(Boolean).join(' ');
       const showExam = !!ctx.exam;
       $('br-exam-dt').classList.toggle('hidden', !showExam);
       $('br-exam').classList.toggle('hidden', !showExam);
@@ -355,12 +359,50 @@ export function createMenus(h) {
       show('quiz');
     },
 
+    showBenchProgress(text) {
+      $('bench-title').textContent = 'Benchmark running';
+      $('bench-status').textContent = text;
+      $('bench-table').classList.add('hidden');
+      $('bench-rec').classList.add('hidden');
+      $('bench-apply').classList.add('hidden');
+      $('bench-close').classList.add('hidden');
+      $('bench').classList.remove('hidden');
+      $('bench').style.background = 'transparent'; // let the water show while it is measured
+    },
+
+    // results: { low: {avgFps, low1Fps}, ... }
+    showBenchResult(results, recommended, current) {
+      $('bench').style.background = '';
+      $('bench-title').textContent = 'Benchmark results';
+      $('bench-status').textContent = 'Measured in a rough sea with the wake and foam running. Your numbers on this device:';
+      const rows = $('bench-rows');
+      rows.textContent = '';
+      for (const id of ['low', 'medium', 'high']) {
+        const r = results[id];
+        const verdict = r.avgFps >= 50 && r.low1Fps >= 30 ? 'Smooth' : r.avgFps >= 30 ? 'Playable' : 'Too slow';
+        const tr = el('tr');
+        tr.append(el('td', '', id[0].toUpperCase() + id.slice(1)), el('td', 'pts', `${r.avgFps.toFixed(0)} fps`), el('td', 'pts', `${r.low1Fps.toFixed(0)} fps`), el('td', 'note', verdict));
+        rows.appendChild(tr);
+      }
+      $('bench-table').classList.remove('hidden');
+      const rec = $('bench-rec');
+      rec.textContent = `Recommended: ${recommended[0].toUpperCase() + recommended.slice(1)}. ${current === recommended ? 'This is already your setting.' : ''}`;
+      rec.classList.remove('hidden');
+      const apply = $('bench-apply');
+      apply.dataset.id = recommended;
+      apply.textContent = `Use ${recommended[0].toUpperCase() + recommended.slice(1)}`;
+      apply.classList.toggle('hidden', current === recommended);
+      $('bench-close').classList.remove('hidden');
+      show('bench');
+    },
+
     showPause(inGame, opts = {}) {
       $('pause-title').textContent = inGame ? 'Paused' : 'Settings';
       $('pause-actions').classList.toggle('hidden', !inGame);
       $('pause-restart').classList.toggle('hidden', opts.canRestart === false);
       $('pause-abort').textContent = opts.abortLabel || 'Abort mission';
       $('pause-close').classList.toggle('hidden', inGame);
+      $('bench-btn').classList.toggle('hidden', inGame);
       show('pause');
     },
   };

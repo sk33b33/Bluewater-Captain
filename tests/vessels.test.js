@@ -148,11 +148,13 @@ test('hull strength: the tough workboat takes less damage from the same hit', ()
   assert.ok(hit(cat) < hit(skiff) && hit(cat) > hit(workboat));
 });
 
-test('deadlines scale with the vessel; mission default is for the skiff', () => {
-  const m = getMission('supply-run');
+test('deadlines scale with the vessel (and, in calm weather, the skiff gets exactly the mission deadline)', () => {
+  const m = getMission('training-loop'); // calm
   assert.equal(createRun(m, skiff).deadline, m.deadline);
   assert.ok(createRun(m, workboat).deadline > m.deadline);
   assert.equal(createRun(m).deadline, m.deadline, 'no vessel -> mission deadline');
+  const rough = getMission('supply-run'); // breezy
+  assert.ok(createRun(rough, skiff).deadline > rough.deadline, 'sea adds time');
 });
 
 // ---- fleet, selection and license gates
@@ -327,7 +329,7 @@ test('handling profile matches independent measurement and orders the fleet sens
 test('stat rows: one bar per metric, ratios in (0, 1], the best-scaled vessel hits 1', () => {
   for (const v of VESSELS) {
     const rows = statRows(v, VESSELS);
-    assert.equal(rows.length, 6);
+    assert.equal(rows.length, 7);
     for (const r of rows) assert.ok(r.ratio > 0 && r.ratio <= 1.000001 && r.display.length > 0 && ['higher', 'lower'].includes(r.better), `${v.id} ${r.label}`);
   }
   const topSpeedRows = VESSELS.map((v) => statRows(v, VESSELS)[0].ratio);

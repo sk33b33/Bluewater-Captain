@@ -2,6 +2,7 @@
 // Heading 0 = north, clockwise; a berth's heading is the pier's long axis (docking accepts either direction).
 // kind: training (open to all) | contract (needs a license) | exam (earns a license).
 // vesselClasses: which classes may be used; the player picks among those their licenses permit.
+// weather: id from data/weather.js. Deadlines are for the skiff in calm weather and scale with vessel and sea.
 import { ROUTE, SPAWN } from '../sim/world.js';
 
 export const BERTHS = {
@@ -9,7 +10,6 @@ export const BERTHS = {
   pine: { name: 'Pine Isle Landing berth', cx: 385, cz: 262.5, heading: Math.PI / 2, halfLength: 9, halfWidth: 4.5 },
 };
 
-const WEATHER = 'Light breeze, about 8 knots from the north-west. Light boats drift more.';
 const ALL = ['small-motorboat', 'workboat', 'coastal-passenger'];
 
 export const KIND_LABEL = { training: 'Training', contract: 'Contract', exam: 'Exam' };
@@ -51,7 +51,7 @@ export const MISSIONS = [
     rep: 5,
     xp: 100,
     risk: 'Low',
-    weather: WEATHER,
+    weather: 'breezy',
     start: { x: -740, z: 137.5, heading: Math.PI / 2 },
     waypoints: TO_PINE,
     dock: 'pine',
@@ -71,7 +71,7 @@ export const MISSIONS = [
     rep: 5,
     xp: 100,
     risk: 'Low',
-    weather: WEATHER,
+    weather: 'foggy',
     start: { x: 385, z: 262.5, heading: (3 * Math.PI) / 2 },
     waypoints: TO_HARBOR,
     dock: 'harborN',
@@ -91,7 +91,7 @@ export const MISSIONS = [
     rep: 6,
     xp: 120,
     risk: 'Medium',
-    weather: WEATHER,
+    weather: 'choppy',
     start: { x: -740, z: 137.5, heading: Math.PI / 2 },
     waypoints: TO_PINE,
     dock: 'pine',
@@ -111,7 +111,7 @@ export const MISSIONS = [
     rep: 7,
     xp: 140,
     risk: 'Medium',
-    weather: WEATHER,
+    weather: 'breezy',
     start: { x: 385, z: 262.5, heading: (3 * Math.PI) / 2 },
     waypoints: TO_HARBOR,
     dock: 'harborN',
@@ -131,7 +131,7 @@ export const MISSIONS = [
     rep: 1,
     xp: 30,
     risk: 'None',
-    weather: WEATHER,
+    weather: 'calm',
     start: { x: SPAWN.x, z: SPAWN.z, heading: SPAWN.heading },
     waypoints: ROUTE,
     dock: null,
@@ -151,7 +151,7 @@ export const MISSIONS = [
     rep: 1,
     xp: 40,
     risk: 'None',
-    weather: WEATHER,
+    weather: 'calm',
     start: { x: -660, z: 60, heading: Math.PI },
     waypoints: [{ name: 'Practice buoy', x: -690, z: 135, radius: 25, spread: 8 }],
     dock: 'harborN',
@@ -171,7 +171,7 @@ export const MISSIONS = [
     rep: 1,
     xp: 40,
     risk: 'None',
-    weather: WEATHER,
+    weather: 'breezy',
     start: CIRCUIT_START,
     waypoints: CIRCUIT,
     dock: 'harborN',
@@ -191,7 +191,7 @@ export const MISSIONS = [
     rep: 1,
     xp: 40,
     risk: 'None',
-    weather: WEATHER,
+    weather: 'calm',
     start: CIRCUIT_START,
     waypoints: CIRCUIT,
     dock: 'harborN',
@@ -211,7 +211,7 @@ export const MISSIONS = [
     rep: 0,
     xp: 0,
     risk: 'Exam',
-    weather: WEATHER,
+    weather: 'calm',
     start: CIRCUIT_START,
     waypoints: CIRCUIT,
     dock: 'harborN',
@@ -231,7 +231,7 @@ export const MISSIONS = [
     rep: 0,
     xp: 0,
     risk: 'Exam',
-    weather: WEATHER,
+    weather: 'choppy',
     start: CIRCUIT_START,
     waypoints: TO_PINE,
     dock: 'pine',

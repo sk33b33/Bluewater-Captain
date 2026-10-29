@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { LAND, BREAKWATERS, DOCKS, ISLANDS } from '../sim/world.js';
 import { gateBuoys } from '../data/missions.js';
-import { getWaterHeight } from '../sim/waves.js';
+import { getWaterHeight, WAVES } from '../sim/waves.js';
 
 // All meshes here are PLACEHOLDER primitives (see assets/ASSET_REGISTER.csv).
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
@@ -165,10 +165,10 @@ function makeBuoy(color) {
   return b;
 }
 
-export function updateBuoys(buoys, t, activeIndex) {
+export function updateBuoys(buoys, t, activeIndex, waves = WAVES) {
   buoys.gates.forEach((g, i) => {
     for (const buoy of [g.left, g.right]) {
-      buoy.position.y = getWaterHeight(buoy.position.x, buoy.position.z, t) - 0.2;
+      buoy.position.y = getWaterHeight(buoy.position.x, buoy.position.z, t, waves) - 0.2;
     }
     g.beam.visible = i === activeIndex;
     g.beam.material.opacity = 0.22 + 0.08 * Math.sin(t * 3);
@@ -176,14 +176,14 @@ export function updateBuoys(buoys, t, activeIndex) {
 }
 
 // Place boat on the water: height at centre, pitch/roll from four sample points sized to the vessel.
-export function poseBoat(boat, s, t, v) {
+export function poseBoat(boat, s, t, v, waves = WAVES) {
   const sin = Math.sin(s.heading), cos = Math.cos(s.heading);
   const fx = sin, fz = -cos, rx = cos, rz = sin;
   const L = v.length * 0.46, W = v.beam * 0.46;
-  const hF = getWaterHeight(s.x + fx * L, s.z + fz * L, t);
-  const hB = getWaterHeight(s.x - fx * L, s.z - fz * L, t);
-  const hR = getWaterHeight(s.x + rx * W, s.z + rz * W, t);
-  const hL = getWaterHeight(s.x - rx * W, s.z - rz * W, t);
+  const hF = getWaterHeight(s.x + fx * L, s.z + fz * L, t, waves);
+  const hB = getWaterHeight(s.x - fx * L, s.z - fz * L, t, waves);
+  const hR = getWaterHeight(s.x + rx * W, s.z + rz * W, t, waves);
+  const hL = getWaterHeight(s.x - rx * W, s.z - rz * W, t, waves);
   const pitch = Math.atan2(hF - hB, 2 * L);
   const roll = Math.atan2(hR - hL, 2 * W) + (s.rudder * s.u * 0.012) / (1 + v.massTonnes * 0.08); // heavier boats lean less
   boat.position.set(s.x, (hF + hB + hR + hL) / 4 - 0.1, s.z);
@@ -195,8 +195,10 @@ export function poseBoat(boat, s, t, v) {
 }
 
 export function addLights(scene, sunDir) {
-  scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a3a, 0.9));
+  const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x4a5a3a, 0.9);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff1d6, 1.6);
   sun.position.copy(sunDir).multiplyScalar(500);
   scene.add(sun);
+  return { hemi, sun };
 }

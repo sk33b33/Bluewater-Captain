@@ -110,3 +110,12 @@ No multiplayer, procedural planet, economy simulation, fully simulated ship inte
 - **Jobs:** most contracts accept any vessel you are licensed for; Heavy Gear Haul needs the workboat and the Passenger Shuttle needs the Coastal Cat. Deadlines are written for the skiff and scaled by vessel.
 - **Sailing under instruction:** training trials and the exam may use a class you do not hold yet, once you meet the license prerequisites. Contracts never do.
 - **Coastal Skipper:** needs the permit and reputation 10; two sea trials (score 50+), a written test (4 of 5) and a workboat exam (score 70+, at most 2 damaging collisions, fee 250).
+
+
+## Stage 5 implementation notes: water, weather and performance
+- **Weather per mission:** Calm, Fresh breeze, Moderate sea, Rough sea, Fog bank. Training and exams stay mostly calm so learning is not punished; heavier contracts and the Coastal Skipper exam use rougher seas; one contract runs in fog.
+- **Readable effects:** the HUD shows wind speed and which way it pushes you, wave height and, in fog, visibility. The briefing says in plain words what the sea will do to the vessel you picked ("top speed -26%, steering -18%").
+- **Fairness:** deadlines are longer in rough seas and for slower vessels, so bad weather changes how you drive, not whether you can win.
+- **Why small boats suffer most:** the effect compares wave height with hull length. The same formula covers every vessel, so future ships behave sensibly without special-casing.
+- **Visibility:** fog shortens how far you can see; the compass arrow and distance readout stay available, and the destination beam fades with distance like everything else.
+- **Quality:** Auto, Low, Medium, High. The game aims to stay playable on old hardware first and look good second.

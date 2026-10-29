@@ -14,7 +14,12 @@ const approach = (cur, target, rate, dt) => cur + (target - cur) * Math.min(1, r
 
 // input: { throttle: -1..1, steer: -1..1 }  (steer +1 = turn to starboard / right)
 // wind: optional { x, z } velocity the wind pushes toward (see sim/wind.js windVector).
-export function stepVessel(s, input, p, dt, wind) {
+// sea: optional { speedFactor, steerFactor } from sim/weather.js seaEffect (waves slow and blunt the boat).
+export function stepVessel(s, input, p, dt, wind, sea) {
+  const speedF = sea ? sea.speedFactor : 1;
+  const steerF = sea ? sea.steerFactor : 1;
+  const maxSpeed = p.maxSpeed * speedF;
+  const maxReverse = p.maxReverse * speedF;
   const throttleIn = clamp(input.throttle, -1, 1);
   const steerIn = clamp(input.steer, -1, 1);
   s.throttle = approach(s.throttle, throttleIn, p.throttleResponse, dt);
@@ -24,15 +29,15 @@ export function stepVessel(s, input, p, dt, wind) {
   // Astern uses its own (usually weaker) thrust, so heavy boats take longer to stop.
   const lin = p.linearResistance;
   const reverseAccel = p.reverseAccel ?? p.thrustAccel;
-  const dragFwd = (p.thrustAccel - lin * p.maxSpeed) / (p.maxSpeed * p.maxSpeed);
-  const dragRev = (reverseAccel - lin * p.maxReverse) / (p.maxReverse * p.maxReverse);
+  const dragFwd = (p.thrustAccel - lin * maxSpeed) / (maxSpeed * maxSpeed);
+  const dragRev = (reverseAccel - lin * maxReverse) / (maxReverse * maxReverse);
   const thrust = s.throttle >= 0 ? s.throttle * p.thrustAccel : s.throttle * reverseAccel;
   const drag = s.u >= 0 ? dragFwd * s.u * s.u : -dragRev * s.u * s.u;
   s.u += (thrust - drag - lin * s.u) * dt;
 
   // Yaw: authority grows with speed, reverses when going astern.
   const authority = clamp(s.u / p.yawRefSpeed, -1, 1);
-  const targetR = s.rudder * p.maxYawRate * authority;
+  const targetR = s.rudder * p.maxYawRate * steerF * authority;
   s.r = approach(s.r, targetR, p.yawResponse, dt);
   s.heading += s.r * dt;
   s.heading = ((s.heading % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);

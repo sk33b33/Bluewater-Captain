@@ -116,3 +116,15 @@ Follow the system boundaries listed above. Specific choices:
 - **Collision:** hull = two circles; obstacles are circles/rects; push-out plus speed-into-surface removal.
 - **Hardware assumptions:** GTX 770-class GPU, 1080p. "Low graphics" option renders at 0.75 pixel ratio. Frame rate on the user's machine is not yet measured.
 - **Tests:** `npm test` (19 unit tests, incl. an autopilot that completes the route); `tests/e2e/smoke.cjs` (headless Chromium load/drive check).
+
+
+---
+
+# Stage 5 Update: weather, water and performance
+
+- **Weather:** `src/data/weather.js` (presets), `src/sim/weather.js` (gusts, veer, sea effect, deadlines, forecast text), `src/sim/waves.js` (`waveSet(weather)`), `src/render/atmosphere.js` (sky, fog, light). Everything is a pure function of preset, vessel and clock.
+- **Water:** `src/render/water.js` evaluates the same four waves as `getWaterHeight`; foam and shallow tint use a 512x512 shore-distance texture baked once (`src/sim/shore.js`, `src/render/shore.js`); wake particles are bookkept in `src/sim/wake.js` and drawn by `src/render/wake.js`.
+- **Quality:** `src/data/quality.js` presets drive render resolution (`min(devicePixelRatio x scale, cap)`), water grid (160/240/360), wave count (3/4/4), foam, and wake capacity (0/120/320). Switching rebuilds only what changed.
+- **Performance tooling:** `src/sim/perf.js` has frame statistics (fps, p95, p99, 1% low), the auto-quality governor and the benchmark recommendation. The in-game overlay and benchmark use them.
+- **Budget (unmeasured on real hardware):** target 30 fps minimum and 60 fps desired on a GTX 770-class GPU at 1080p; Low is designed to render at 0.6x resolution with no foam or wake to give weak cards the best chance.
+- **Tests:** unit tests for all of the above plus `tests/e2e/weather.cjs`.

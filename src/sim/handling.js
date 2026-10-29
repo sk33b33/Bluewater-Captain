@@ -2,6 +2,8 @@
 // Nothing here is hand-typed per vessel, so the screen can never disagree with how the boat drives.
 import { createVesselState, stepVessel } from './vessel.js';
 import { windVector } from './wind.js';
+import { seaEffect } from './weather.js';
+import { WEATHER } from '../data/weather.js';
 
 const DT = 1 / 60;
 const cache = new Map();
@@ -50,6 +52,7 @@ export function handlingProfile(v) {
       turnRadius: turnRadius(v),
       driftPerMinute: driftPerMinute(v),
       toughness: 1 / v.hullStrength,
+      roughLoss: 1 - seaEffect(WEATHER.rough, v).speedFactor, // share of top speed lost in a rough sea
     });
   }
   return cache.get(v.id);
@@ -71,5 +74,6 @@ export function statRows(v, fleet) {
     row('Turning circle at 12 kn', h.turnRadius, `${h.turnRadius.toFixed(0)} m radius`, 'turnRadius', 'lower'),
     row('Wind drift (1 min)', h.driftPerMinute, `${h.driftPerMinute.toFixed(0)} m`, 'driftPerMinute', 'lower'),
     row('Hull toughness', h.toughness, `${h.toughness.toFixed(1)}x`, 'toughness', 'higher'),
+    row('Speed lost in a rough sea', h.roughLoss, `${Math.round(h.roughLoss * 100)}%`, 'roughLoss', 'lower'),
   ];
 }

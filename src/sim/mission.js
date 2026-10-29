@@ -1,6 +1,8 @@
 // Mission run state machine, docking check and scoring. Pure logic: no DOM or WebGL.
 // phases: underway -> (docking ->) complete | failed
 import { createRouteState, updateRoute, respawnPoint } from './route.js';
+import { deadlineFor } from './weather.js';
+import { getWeather } from '../data/weather.js';
 
 export const DOCK = { maxSpeed: 1.5, maxAngleDeg: 25, holdSeconds: 2, maxOffset: 8 };
 export const TIME_LIMIT_FACTOR = 2; // mission fails at deadline x this
@@ -10,12 +12,14 @@ export const MIN_DAMAGE_IMPACT = 1; // m/s, gentler contact does no damage
 const angleDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-// `vessel` sets the vessel id and scales the deadline (the mission's deadline is written for the skiff).
+// `vessel` sets the vessel id and, with the mission's weather, scales the deadline (mission deadlines are
+// written for the skiff in calm weather: slower vessels and rougher seas get more time).
 export function createRun(mission, vessel = null) {
   return {
     mission,
     vesselId: vessel ? vessel.id : null,
-    deadline: Math.round(mission.deadline * (vessel ? vessel.deadlineFactor : 1)),
+    weatherId: mission.weather,
+    deadline: vessel ? deadlineFor(mission, vessel, getWeather(mission.weather)) : mission.deadline,
     phase: 'underway',
     time: 0,
     departed: false,

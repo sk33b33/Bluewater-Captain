@@ -91,3 +91,24 @@ If you do not want to grind the Coastal Skipper, ask for a test profile with bot
 | 15 | Bump the pier with the workboat and the skiff | Workboat loses less hull per hit | |
 | 16 | Reload | Active vessel and licenses are kept | |
 | 17 | Phone: fleet screen and a mission with the Cat | Readable; controls and camera usable | |
+
+
+# Stage 5 Manual Test Checklist
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Board > Settings > tick "Show performance overlay" | Small readout with fps, 1% low, ms, preset, draw calls | |
+| 2 | Settings > Run benchmark | About 20 s on its own: Low, Medium, High; then a table and a recommendation. **Write the three rows down** | |
+| 3 | Apply the recommendation | Quality changes and you return to the board | |
+| 4 | Settings quality: Low, Medium, High | Low is clearly lighter (lower resolution, no foam or wake); High looks richest | |
+| 5 | Quality: Auto, then play on a slow machine | If it runs under 30 fps for a few seconds, a message says graphics were lowered | |
+| 6 | Briefing for a contract | Forecast line, what the sea does to your vessel, a tip; deadline matches the vessel and sea | |
+| 7 | Play Supply Run (fresh breeze) in the skiff, then the workboat | Wind gusts; the skiff is slowed more by the waves than the workboat | |
+| 8 | Heavy Gear Haul (moderate sea) | Bigger waves, whitecaps, noticeably slower and heavier steering | |
+| 9 | Island Produce Return (fog) | You cannot see far; compass arrow and distance still work; HUD shows visibility | |
+| 10 | Compare calm (training) with rough | Water colour, sky and light change; waves are taller and longer | |
+| 11 | Drive fast, look behind | White wake trail on Medium/High; none on Low | |
+| 12 | Sail near the pier or an island | Light foam along the shore and lighter shallow water | |
+| 13 | Dock in a gusty breeze | Wind pushes you around while slow; still possible | |
+| 14 | Fleet screen | New "Speed lost in a rough sea" bar; skiff worst, passenger craft best | |
+| 15 | Phone: settings, overlay, a mission in rough weather | Readable; frame rate acceptable on Low | |

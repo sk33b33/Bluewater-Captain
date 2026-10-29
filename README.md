@@ -1,6 +1,6 @@
 # Bluewater Captain
 
-A 3D maritime career game that runs in your browser. **Stage 4 prototype**: train, earn the Small Craft Permit and then the Coastal Skipper, and take paid contracts between two ports in a skiff, a workboat or a passenger craft. Each vessel drives differently, and a steady wind pushes them around. All art is temporary placeholder geometry.
+A 3D maritime career game that runs in your browser. **Stage 5 prototype**: train, earn the Small Craft Permit and then the Coastal Skipper, and take paid contracts between two ports in a skiff, a workboat or a passenger craft. Each vessel drives differently, and the weather matters: wind gusts, wave height slows and blunts boats (small ones most), and fog limits what you can see. All art is temporary placeholder geometry.
 
 ## Run it
 Requires [Node.js](https://nodejs.org) 18+.
@@ -15,6 +15,9 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 1. Push this repo to GitHub (already done) and import it at vercel.com/new.
 2. Leave the defaults: `vercel.json` sets the build command (`npm run build`) and output folder (`dist`). No environment variables are needed.
 3. Deploy. Vercel gives you a public link; each push to a branch gets its own preview link.
+
+## Performance
+Open **Settings** from the mission board: pick a graphics quality (Auto lowers itself if the game runs slowly), tick **Show performance overlay** for a live frame rate, or press **Run benchmark** to measure Low, Medium and High on your device and get a recommendation.
 
 ## Controls
 | Input | Action |
@@ -31,7 +34,8 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 
 ## Test
 ```
-npm test                                   # 101 unit tests (vessels and handling, wind, collision, missions, docking, scoring, licenses, quiz, profile)
+npm test                                   # 131 unit tests (vessels, weather and waves, performance tools, collision, missions, docking, scoring, licenses, quiz, profile)
+node tests/e2e/weather.cjs                 # optional headless weather / quality / benchmark test
 node tests/e2e/vessels.cjs                 # optional headless fleet / vessel-choice test
 node tests/e2e/license.cjs                 # optional headless end-to-end license path (needs Playwright + npm run build)
 node tests/e2e/mission.cjs                 # optional headless end-to-end mission loop

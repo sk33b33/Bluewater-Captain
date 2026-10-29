@@ -73,6 +73,13 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** vessel choice materially changes the gameplay and license restrictions work.
 
 ## Stage 5 — Water, waves, and weather upgrade
+**Status: implemented 2026-10-29, awaiting user testing and approval.** Acceptance criteria used:
+1. Water: four directional wave components raised by the weather (wave height from sea state, direction downwind, nothing too short to resolve), analytic normals, crest whitecaps, shoreline foam and shallow-water tint from a baked shore-distance texture, and a boat wake.
+2. Weather: five data-driven presets (Calm, Fresh breeze, Moderate sea, Rough sea, Fog bank) with gusting, veering wind, sea state, cloud and visibility; each mission names its weather; briefings show the forecast.
+3. Gameplay: sea state slows and blunts steering in proportion to wave height against hull length (small boats suffer most, calm water costs nothing); wind gusts change leeway drift; deadlines scale with vessel and sea; fog limits how far you can see. All constants are in one tunable block (`SEA_TUNING`).
+4. Scalability: Low / Medium / High presets plus Auto (starts Medium, only ever steps down after sustained slow frames), selectable in Settings; each preset changes render resolution, water mesh density, wave count, foam and wake.
+5. Profiling: optional on-screen FPS / 1% low / frame time / draw calls overlay and a built-in benchmark that measures all three presets in a rough sea and recommends one. Real numbers must come from the player's own machine.
+**Exclusions kept out:** rain, lightning, tides/currents, weather that changes mid-mission, sound, shadows, reflections of scenery.
 - Upgrade visual ocean, directional waves, wake/foam as budget allows, wind, sea states, fog/visibility.
 - Connect sea conditions to handling in a readable, tunable way.
 - Add graphics scalability and profile performance.

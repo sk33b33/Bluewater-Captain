@@ -57,3 +57,14 @@ Record each decision with date, context, options, decision, and consequences.
 - The south berth at the harbor pier was removed: starting from it put the boat on a collision course with the pier. All harbor departures and arrivals use the north berth.
 - Profile moves to v3 (adds the active vessel; v1 and v2 saves migrate).
 - Scripted-captain tests now follow the line between marks (not aim straight at each mark), which made the courses measurable per vessel.
+
+## D-009 — Stage 5 weather, water and performance model (ACCEPTED as part of Stage 5 build, 2026-10-29)
+- Weather is a preset id per mission (`src/data/weather.js`); the world changes only by mission, not mid-mission. Gusts and wind veer are deterministic sine sums of time, so tests and replays are reproducible.
+- Waves: sum of four sines around the wind direction. Energy follows significant wave height (`sum amp^2 = Hs^2 / 8`), wavelength grows with sea state (never below 14 m so the 7-16 m water grid can resolve it). JS (buoyancy) and the shader use the same set, so boats ride the water you see.
+- Sea effect on handling = severity of wave height relative to hull length, ignoring small waves (`calmThreshold`), scaling top speed and steering. It uses one formula for every vessel, so bigger boats cope better without hand-set numbers. Weighted so the worst case still leaves a skiff at about 70% speed.
+- Deadlines now scale by vessel factor and by 1 / sea speed factor; calm weather keeps the skiff on the written deadline.
+- Quality: three presets plus Auto. Auto starts at Medium and only steps down (2 consecutive 2 s windows below 30 fps, ignoring stalls over 250 ms, 6 s cooldown). It never steps up on its own, to avoid flicker. Old `lowGraphics` settings migrate to Low.
+- Wind and wave sources replaced the constant 8 kn wind; the old `WIND` constant remains only for tests and helpers.
+- Shore foam and shallow tint come from a 512x512 texture baked once from the obstacle list; this avoids per-pixel geometry maths on weak GPUs.
+- Benchmark runs inside the game so the player can measure their own hardware, because headless software rendering here cannot.
+- The flat far-water plane is kept at -6 m so wave troughs never expose it (a Stage 2 bug).

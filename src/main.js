@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { createVesselState, stepVessel, speedKnots, headingDegrees } from './sim/vessel.js';
-import { WIND, windVector, windKnots, windArrow } from './sim/wind.js';
+import { windVector, windArrow } from './sim/wind.js';
+import { getWeather } from './data/weather.js';
+import { windAt, seaEffect, seaEffectText, forecastText, deadlineFor, waveSetFor, NO_SEA } from './sim/weather.js';
+import { getQuality, AUTO_START, lowerQuality, pixelRatioFor } from './data/quality.js';
+import { createFrameStats, createGovernor, recommendQuality } from './sim/perf.js';
+import { createWake, stepWake, clearWake } from './sim/wake.js';
 import { getVessel, DEFAULT_VESSEL } from './data/vessels.js';
 import { BUOY_RADIUS, staticObstacles, resolveCollisions, edgeStatus } from './sim/world.js';
 import { MISSIONS, BERTHS, getMission } from './data/missions.js';
@@ -12,6 +17,9 @@ import { formatTime } from './sim/route.js';
 import { pickQuestions, scoreQuiz } from './sim/quiz.js';
 import { evaluateLicense, missionAccess, isHeld, examFor, chooseVessel, usableVessels, fleetStatus, selectVessel, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips } from './sim/licenses.js';
 import { createSky } from './render/sky.js';
+import { makeShoreTexture } from './render/shore.js';
+import { createWakeMesh } from './render/wake.js';
+import { applyAtmosphere } from './render/atmosphere.js';
 import { createWater } from './render/water.js';
 import { buildStatic, buildBoat, buildBuoys, buildBerth, disposeObject, updateBuoys, poseBoat, addLights } from './render/scene.js';
 import { createInput } from './input.js';
@@ -32,14 +40,24 @@ const scene = new THREE.Scene();
 const sky = createSky();
 scene.add(sky.mesh);
 scene.fog = new THREE.Fog(sky.fogColor, 600, 3000);
-addLights(scene, sky.sunDir);
-const water = createWater(sky);
+const lights = addLights(scene, sky.sunDir);
+const baseObstacles = staticObstacles();
+const shoreTexture = makeShoreTexture(baseObstacles);
+
+let qualityId = settings.quality === 'auto' ? AUTO_START : settings.quality;
+let q = getQuality(qualityId);
+let weather = getWeather('calm');
+let seaWaves = waveSetFor(weather, q.waves);
+let water = createWater(sky, q, shoreTexture);
 scene.add(water);
 scene.add(buildStatic());
 let vp = getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL); // vessel being driven / shown
 let boat = buildBoat(vp);
 scene.add(boat);
-const windV = windVector(WIND);
+let sea = NO_SEA; // what the current weather does to the current vessel
+let wake = createWake(q.wake);
+let wakeMesh = null;
+if (q.wake > 0) { wakeMesh = createWakeMesh(q.wake); scene.add(wakeMesh); }
 
 function setVessel(v) {
   if (v.id === vp.id && boat) return;
@@ -48,23 +66,55 @@ function setVessel(v) {
   vp = v;
   boat = buildBoat(vp);
   scene.add(boat);
+  sea = seaEffect(weather, vp);
 }
 
-function applyQuality() {
-  const ratio = settings.lowGraphics ? 0.75 : Math.min(window.devicePixelRatio || 1, 2);
-  renderer.setPixelRatio(ratio);
+// Weather: waves (cut to the quality's wave count), sky, fog/visibility, light and the effect on the vessel.
+function applyWeather(w) {
+  weather = w;
+  seaWaves = waveSetFor(w, q.waves);
+  water.userData.setWaves(seaWaves);
+  applyAtmosphere({ scene, sky, water, hemi: lights.hemi, sun: lights.sun }, w);
+  sea = seaEffect(w, vp);
+}
+
+function resize() {
+  renderer.setPixelRatio(pixelRatioFor(q, window.devicePixelRatio || 1));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 }
-window.addEventListener('resize', applyQuality);
-applyQuality();
+
+// Switch graphics preset: render resolution, water mesh, wave count, foam, wake.
+function applyQuality(id) {
+  const next = getQuality(id);
+  qualityId = next.id;
+  const rebuildWater = next.grid !== q.grid;
+  const rebuildWake = next.wake !== q.wake;
+  q = next;
+  if (rebuildWater) {
+    scene.remove(water);
+    water.userData.dispose();
+    water = createWater(sky, q, shoreTexture);
+    scene.add(water);
+  }
+  water.userData.setFoam(q.foam);
+  if (rebuildWake) {
+    if (wakeMesh) { scene.remove(wakeMesh); wakeMesh.userData.dispose(); wakeMesh = null; }
+    wake = createWake(q.wake);
+    if (q.wake > 0) { wakeMesh = createWakeMesh(q.wake); scene.add(wakeMesh); }
+  }
+  applyWeather(weather);
+  resize();
+}
+window.addEventListener('resize', resize);
+resize();
+applyWeather(weather);
 
 // ---- game state
 const input = createInput();
 const hud = createHud();
 const touchUi = setupTouchControls(input);
-const baseObstacles = staticObstacles();
 
 const vessel = createVesselState(MISSIONS[0].start.x, MISSIONS[0].start.z, MISSIONS[0].start.heading);
 let mode = 'menu'; // menu | board | briefing | licenses | quiz | play | paused | settings | result
@@ -96,6 +146,7 @@ function placeVessel(p) {
   camHeading = p.heading;
   camOffset = 0;
   stuckTime = 0;
+  clearWake(wake);
   if (touchUi) touchUi.reset();
 }
 
@@ -110,6 +161,7 @@ function startMission(m, vessel) {
   clearMission();
   mission = m;
   setVessel(vessel);
+  applyWeather(getWeather(m.weather));
   run = createRun(m, vessel);
   buoys = buildBuoys(m.waypoints, m.start);
   scene.add(buoys.group);
@@ -140,6 +192,7 @@ function enterBoard() {
   clearMission();
   mission = null;
   setVessel(getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL));
+  applyWeather(getWeather('calm'));
   placeVessel(MISSIONS[0].start);
   setPlaying(false);
   showBoard();
@@ -151,6 +204,7 @@ function showBriefing(m, keepVessel = false) {
   mode = 'briefing';
   const ex = examFor(m);
   const lic = getLicense(m.license);
+  const wx = getWeather(m.weather);
   const vessels = usableVessels(profile, m);
   if (!keepVessel || !briefingVessel || !vessels.some((v) => v.id === briefingVessel.id)) briefingVessel = chooseVessel(profile, m);
   menus.showBriefing(m, {
@@ -160,7 +214,10 @@ function showBriefing(m, keepVessel = false) {
     licenseName: lic ? lic.name : '',
     vessels,
     vessel: briefingVessel,
-    deadline: Math.round(m.deadline * (briefingVessel ? briefingVessel.deadlineFactor : 1)),
+    deadline: briefingVessel ? deadlineFor(m, briefingVessel, wx) : m.deadline,
+    forecast: forecastText(wx),
+    seaText: briefingVessel ? seaEffectText(wx, briefingVessel) : '',
+    tip: wx.tip,
   });
 }
 
@@ -168,6 +225,7 @@ function showFleet() {
   clearMission();
   setPlaying(false);
   setVessel(getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL));
+  applyWeather(getWeather('calm'));
   mode = 'fleet';
   menus.showFleet(profile, fleetStatus(profile));
 }
@@ -265,6 +323,9 @@ const menus = createMenus({
   onBoard: () => enterBoard(),
   onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission, vp); },
   onFleet: () => showFleet(),
+  onBenchStart: () => benchStart(),
+  onBenchApply: (id) => { settings.quality = id; qualitySel.value = id; saveSettings(); applyQuality(id); governor.reset(); enterBoard(); },
+  onBenchClose: () => enterBoard(),
   onPickVessel: (id) => {
     const v = getVessel(id);
     if (!v || !usableVessels(profile, selected).some((u) => u.id === id)) return;
@@ -324,27 +385,116 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 const sens = document.getElementById('set-sens');
-const low = document.getElementById('set-low');
+const qualitySel = document.getElementById('set-quality');
+const fpsBox = document.getElementById('set-fps');
 const calm = document.getElementById('set-calm');
+const perfEl = document.getElementById('perf');
 sens.value = String(settings.sensitivity);
-low.checked = settings.lowGraphics;
+qualitySel.value = settings.quality;
+fpsBox.checked = settings.showFps;
 calm.checked = settings.reducedMotion;
+perfEl.classList.toggle('hidden', !settings.showFps);
 sens.addEventListener('input', () => { settings.sensitivity = parseFloat(sens.value); saveSettings(); });
-low.addEventListener('change', () => { settings.lowGraphics = low.checked; saveSettings(); applyQuality(); });
+qualitySel.addEventListener('change', () => {
+  settings.quality = qualitySel.value;
+  saveSettings();
+  governor.reset();
+  applyQuality(settings.quality === 'auto' ? (qualityId === 'high' ? 'high' : AUTO_START) : settings.quality);
+});
+fpsBox.addEventListener('change', () => { settings.showFps = fpsBox.checked; saveSettings(); perfEl.classList.toggle('hidden', !settings.showFps); });
 calm.addEventListener('change', () => { settings.reducedMotion = calm.checked; saveSettings(); });
 
+// Older saves used a Low graphics checkbox.
 function loadSettings() {
-  const d = { sensitivity: 1, lowGraphics: false, reducedMotion: false };
-  try { return { ...d, ...JSON.parse(localStorage.getItem('bwc-settings') || '{}') }; } catch { return d; }
+  const d = { sensitivity: 1, quality: 'auto', showFps: false, reducedMotion: false };
+  try {
+    const raw = JSON.parse(localStorage.getItem('bwc-settings') || '{}');
+    const out = { ...d, ...raw };
+    if (raw.quality === undefined && raw.lowGraphics) out.quality = 'low';
+    if (!['auto', 'low', 'medium', 'high'].includes(out.quality)) out.quality = 'auto';
+    delete out.lowGraphics;
+    return out;
+  } catch { return d; }
 }
 function saveSettings() { try { localStorage.setItem('bwc-settings', JSON.stringify(settings)); } catch { /* storage unavailable */ } }
+
+function toast(text, ms = 4000) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.classList.remove('hidden');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+// ---- performance: frame statistics, automatic quality, benchmark
+const stats = createFrameStats(240);
+const governor = createGovernor();
+let perfAcc = 0;
+let bench = null;
+const BENCH = { warmup: 1500, sample: 4000, order: ['low', 'medium', 'high'] };
+
+function benchStart() {
+  clearMission();
+  mission = null;
+  setPlaying(false);
+  menus.hideAll();
+  mode = 'bench';
+  setVessel(getVessel('small-motorboat'));
+  applyWeather(getWeather('choppy')); // rough enough to load the water, foam and wake
+  placeVessel({ x: 0, z: 0, heading: 0.5 });
+  bench = { i: 0, t0: performance.now(), samples: [], results: {}, restore: { quality: qualityId } };
+  applyQuality(BENCH.order[0]);
+  governor.reset();
+  menus.showBenchProgress(`Testing ${getQuality(BENCH.order[0]).name} graphics...`);
+}
+
+function benchFrame(rawMs, now) {
+  if (!bench) return;
+  const t = now - bench.t0;
+  if (t >= BENCH.warmup && rawMs < 1000) bench.samples.push(rawMs);
+  const id = BENCH.order[bench.i];
+  menus.showBenchProgress(`Testing ${getQuality(id).name} graphics (${bench.i + 1} of ${BENCH.order.length})... ${Math.max(0, Math.ceil((BENCH.warmup + BENCH.sample - t) / 1000))} s. Press Esc to cancel.`);
+  if (t < BENCH.warmup + BENCH.sample) return;
+  const st = createFrameStats(10000);
+  bench.samples.forEach((ms) => st.push(ms));
+  const r = st.summary();
+  bench.results[id] = { avgFps: r.fps, low1Fps: r.low1Fps, avgMs: r.avgMs, samples: r.samples };
+  bench.i += 1;
+  bench.samples = [];
+  bench.t0 = now;
+  if (bench.i < BENCH.order.length) { applyQuality(BENCH.order[bench.i]); return; }
+  const recommended = recommendQuality(bench.results);
+  const results = bench.results;
+  const restore = bench.restore.quality;
+  bench = null;
+  applyQuality(restore);
+  mode = 'board';
+  enterBoard();
+  menus.showBenchResult(results, recommended, settings.quality);
+}
+
+function benchCancel() {
+  if (!bench) return;
+  const restore = bench.restore.quality;
+  bench = null;
+  applyQuality(restore);
+  enterBoard();
+}
 
 // ---- simulation tick
 function tick(dt) {
   time += dt;
+  const moving = (mode === 'play' && run) || mode === 'bench';
+  const sin = Math.sin(vessel.heading), cos = Math.cos(vessel.heading);
+  stepWake(wake, dt, { sx: vessel.x - sin * vp.length * 0.45, sz: vessel.z + cos * vp.length * 0.45, heading: vessel.heading, speed: moving ? Math.hypot(vessel.u, vessel.v) : 0, beam: vp.beam, active: q.wake > 0 });
+  if (mode === 'bench') {
+    stepVessel(vessel, { throttle: 0.7, steer: 0.35 }, vp, dt, windVector(windAt(weather, time)), sea);
+    resolveCollisions(vessel, vp, baseObstacles);
+    return;
+  }
   if (mode !== 'play' || !run) return;
   const inp = input.read();
-  stepVessel(vessel, inp, vp, dt, windV);
+  stepVessel(vessel, inp, vp, dt, windVector(windAt(weather, time)), sea);
   const col = resolveCollisions(vessel, vp, obstacles);
   const events = [];
   if (col.hit) {
@@ -363,8 +513,25 @@ function tick(dt) {
 }
 
 function frame(now) {
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const rawMs = now - last;
+  const dt = Math.min(0.1, rawMs / 1000);
   last = now;
+  if (mode === 'bench') benchFrame(rawMs, now);
+  else if (now > 3000 && rawMs < 1000) {
+    stats.push(rawMs);
+    if (settings.quality === 'auto' && governor.feed(rawMs) === 'down') {
+      const lower = lowerQuality(qualityId);
+      if (lower) { applyQuality(lower); toast(`Running slowly: graphics lowered to ${getQuality(lower).name}. Change it in Settings.`); }
+    }
+  }
+  if (settings.showFps) {
+    perfAcc += rawMs;
+    if (perfAcc > 500) {
+      perfAcc = 0;
+      const sm = stats.summary();
+      perfEl.textContent = `${sm.fps.toFixed(0)} fps · 1% low ${sm.low1Fps.toFixed(0)} · ${sm.avgMs.toFixed(1)} ms · ${q.name}${settings.quality === 'auto' ? ' (auto)' : ''} · ${renderer.info.render.calls} calls`;
+    }
+  }
   acc += dt;
   while (acc >= STEP) { tick(STEP); acc -= STEP; }
 
@@ -377,6 +544,7 @@ function frame(now) {
     else if (mode === 'licenses') enterBoard();
     else if (mode === 'fleet') enterBoard();
     else if (mode === 'quiz') showLicenses();
+    else if (mode === 'bench') benchCancel();
   }
   if (input.wasPressed('Enter') || input.wasPressed('Space')) {
     if (mode === 'menu') enterBoard();
@@ -386,8 +554,9 @@ function frame(now) {
 
   // visuals
   water.userData.update(time);
-  poseBoat(boat, vessel, time, vp);
-  if (buoys) updateBuoys(buoys, time, run && run.phase === 'underway' ? run.route.next : -1);
+  poseBoat(boat, vessel, time, vp, seaWaves);
+  if (buoys) updateBuoys(buoys, time, run && run.phase === 'underway' ? run.route.next : -1, seaWaves);
+  if (wakeMesh) wakeMesh.userData.sync(wake, time, seaWaves, camera, renderer.domElement.height);
   updateCamera(dt);
   if (run) updateHud();
   renderer.render(scene, camera);
@@ -418,6 +587,12 @@ function dockHint(d, dist) {
   return 'Hold steady...';
 }
 
+function windText() {
+  const w = windAt(weather, time);
+  const vis = weather.visibility < 1500 ? ` \u00b7 vis ${weather.visibility} m` : '';
+  return `wind ${(w.speed * 1.943844).toFixed(0)} kn ${windArrow(vessel.heading, w)} \u00b7 sea ${weather.waveHs.toFixed(1)} m${vis}`;
+}
+
 function updateHud() {
   const m = run.mission;
   let tx, tz, objective;
@@ -444,7 +619,7 @@ function updateHud() {
     objective,
     timer: run.departed ? formatTime(run.time) : '--:--',
     limit: `deadline ${formatTime(run.deadline)}`,
-    wind: `wind ${windKnots(WIND).toFixed(0)} kn ${windArrow(vessel.heading, WIND)}`,
+    wind: windText(),
     late: run.time > run.deadline,
     hull: run.integrity,
     bearingRel: (angleDiff(bearing, vessel.heading) * 180) / Math.PI,
@@ -461,6 +636,15 @@ window.__bwc = {
   BERTHS,
   LICENSES,
   get vesselId() { return vp.id; },
+  get quality() { return qualityId; },
+  get weatherId() { return weather.id; },
+  get seaWaves() { return seaWaves; },
+  get sea() { return sea; },
+  get wakeAlive() { let n = 0; for (let i = 0; i < wake.capacity; i++) if (wake.age[i] < 7) n++; return n; },
+  get bench() { return bench; },
+  applyQuality: (id) => applyQuality(id),
+  setWeather: (id) => applyWeather(getWeather(id)),
+  get fogFar() { return scene.fog.far; },
   get quiz() { return quizQuestions; }, // debug: lets the headless test read the correct answers
 };
 

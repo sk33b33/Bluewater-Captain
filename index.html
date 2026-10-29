@@ -97,6 +97,8 @@
   .stats .bar.lower > i { background: #7fb6d6; }
   .stats .val { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
   select { font: inherit; background: #1f4560; color: var(--text); border: 1px solid #3a6a8c; border-radius: 6px; padding: 6px 8px; max-width: 100%; }
+  #perf { position: fixed; top: 60px; left: 16px; z-index: 9; font: 12px ui-monospace, Menlo, Consolas, monospace; background: rgba(0,0,0,.6); color: #cfe; padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 9; background: #10283b; border: 1px solid #3a6a8c; padding: 10px 16px; border-radius: 10px; max-width: min(92vw, 520px); font-size: 14px; }
   #hud-wind { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
   button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
   #hud-limit { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
@@ -155,7 +157,7 @@
     <div class="panel"><div id="hud-timer">--:--</div><div id="hud-limit"></div><div id="hud-wind"></div></div>
   </div>
   <div id="hud-warning" role="alert"></div>
-  <div id="badge">Stage 4 prototype &middot; placeholder art</div>
+  <div id="badge">Stage 5 prototype &middot; placeholder art</div>
   <div id="hud-bottom">
     <div class="panel stat"><div class="v" id="hud-speed">0.0</div><div class="l">knots</div>
       <div id="hud-throttle"><div id="hud-throttle-fill"></div></div></div>
@@ -174,6 +176,9 @@
 
 <button id="menu-btn" class="ghost" aria-haspopup="dialog">Menu</button>
 
+<div id="perf" class="hidden" aria-hidden="true"></div>
+<div id="toast" class="hidden" role="status"></div>
+
 <div id="touch" class="hidden" aria-label="On-screen controls">
   <div id="t-throttle" class="t-ctl" role="slider" aria-label="Throttle"><span class="lab up">AHEAD</span><span class="lab down">ASTERN</span><div id="t-throttle-thumb"></div></div>
   <button id="t-stop" class="t-btn" type="button">Stop</button>
@@ -184,7 +189,7 @@
 <div id="start" class="overlay hidden">
   <div class="card">
     <h1>Bluewater Captain</h1>
-    <p>Stage 4 prototype: earn licenses, pick a vessel and a contract on the mission board, sail it, dock at the pier and get scored. All art is temporary placeholder.</p>
+    <p>Stage 5 prototype: earn licenses, pick a vessel and a contract on the mission board, and sail it through the day's weather to the pier. All art is temporary placeholder.</p>
     <p class="touch-note">Touch: slide the left lever up for throttle (it stays where you leave it), slide the bottom-right bar to steer, drag the water to look around. Steering needs some speed.</p>
     <div class="keys">
       <span><kbd>W</kbd> <kbd>&uarr;</kbd></span><span>Throttle forward</span>
@@ -232,6 +237,7 @@
       <dt id="br-exam-dt" class="hidden">Exam rules</dt><dd id="br-exam" class="hidden"></dd>
     </dl>
     <p id="br-dock-tip"></p>
+    <p id="br-sea" class="note"></p>
     <p id="br-lock" class="lock-note hidden"></p>
     <div class="row">
       <button id="br-depart">Depart (Enter)</button>
@@ -302,6 +308,19 @@
   </div>
 </div>
 
+<div id="bench" class="overlay hidden">
+  <div class="card wide">
+    <h2 id="bench-title">Benchmark</h2>
+    <p id="bench-status" class="note"></p>
+    <table id="bench-table" class="score hidden"><thead><tr><td>Preset</td><td class="pts">Average</td><td class="pts">1% low</td><td class="note">Verdict</td></tr></thead><tbody id="bench-rows"></tbody></table>
+    <p id="bench-rec" class="hidden"></p>
+    <div class="row">
+      <button id="bench-apply" class="hidden">Use recommended</button>
+      <button id="bench-close" class="ghost hidden">Close</button>
+    </div>
+  </div>
+</div>
+
 <div id="pause" class="overlay hidden" role="dialog" aria-labelledby="pause-title">
   <div class="card">
     <h2 id="pause-title">Paused</h2>
@@ -312,10 +331,18 @@
     </div>
     <div class="settings-block">
       <label>Camera sensitivity<input id="set-sens" type="range" min="0.2" max="3" step="0.1"></label>
-      <label><input id="set-low" type="checkbox"> Low graphics (faster)</label>
+      <label>Graphics quality
+        <select id="set-quality">
+          <option value="auto">Auto (lowers itself if slow)</option>
+          <option value="low">Low (fastest)</option>
+          <option value="medium">Medium</option>
+          <option value="high">High (best looking)</option>
+        </select>
+      </label>
+      <label><input id="set-fps" type="checkbox"> Show performance overlay (FPS)</label>
       <label><input id="set-calm" type="checkbox"> Reduce camera motion</label>
     </div>
-    <div class="row"><button id="pause-close" class="ghost hidden">Close</button></div>
+    <div class="row"><button id="bench-btn" class="ghost hidden">Run benchmark (about 20 s)</button><button id="pause-close" class="ghost hidden">Close</button></div>
   </div>
 </div>
 

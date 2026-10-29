@@ -4,17 +4,19 @@ import { createVesselState, stepVessel } from '../../src/sim/vessel.js';
 import { staticObstacles, resolveCollisions } from '../../src/sim/world.js';
 import { BERTHS } from '../../src/data/missions.js';
 import { createRun, stepRun, applyImpact } from '../../src/sim/mission.js';
-import { WIND, windVector } from '../../src/sim/wind.js';
+import { windVector } from '../../src/sim/wind.js';
+import { windAt, seaEffect } from '../../src/sim/weather.js';
+import { getWeather } from '../../src/data/weather.js';
 
 const DT = 1 / 60;
 
-export function autopilot(mission, vessel, { wind = WIND, maxSeconds = 600 } = {}) {
+export function autopilot(mission, vessel, { weather = getWeather(mission.weather), maxSeconds = 600 } = {}) {
   const run = createRun(mission, vessel);
   const s = createVesselState(mission.start.x, mission.start.z, mission.start.heading);
   const obs = staticObstacles();
-  const w = windVector(wind);
+  const sea = seaEffect(weather, vessel);
   const dockB = mission.dock ? BERTHS[mission.dock] : null;
-  const cruise = Math.min(8, vessel.maxSpeed * 0.8);
+  const cruise = Math.min(8, vessel.maxSpeed * sea.speedFactor * 0.8);
   let events = [];
   for (let i = 0; i < 60 * maxSeconds && run.phase !== 'complete' && run.phase !== 'failed'; i++) {
     // Follow the line from the previous mark (or the start) to the next one, aiming a little ahead on it,
@@ -43,7 +45,7 @@ export function autopilot(mission, vessel, { wind = WIND, maxSeconds = 600 } = {
     const speed = Math.hypot(s.u, s.v);
     const target = Math.abs(err) > 0.7 ? Math.min(vt, 3) : vt;
     const throttle = Math.max(-1, Math.min(1, (target - speed) * 0.6));
-    stepVessel(s, { throttle, steer: Math.max(-1, Math.min(1, err * 2.5)) }, vessel, DT, w);
+    stepVessel(s, { throttle, steer: Math.max(-1, Math.min(1, err * 2.5)) }, vessel, DT, windVector(windAt(weather, i * DT)), sea);
     const col = resolveCollisions(s, vessel, obs);
     if (col.hit) { const e = applyImpact(run, col.impact, vessel.hullStrength); if (e) events.push(e); }
     events = events.concat(stepRun(run, s, DT, BERTHS));
