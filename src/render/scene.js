@@ -58,11 +58,11 @@ export function buildBoat() {
   return outer;
 }
 
-export function buildBuoys(waypoints) {
+export function buildBuoys(waypoints, start) {
   const group = new THREE.Group();
   const gates = [];
   waypoints.forEach((_, i) => {
-    const [a, b] = gateBuoys(waypoints, i);
+    const [a, b] = gateBuoys(waypoints, i, start);
     const left = makeBuoy(0xc0392b);
     const right = makeBuoy(0x2e8b57);
     left.position.set(a.x, 0, a.z);

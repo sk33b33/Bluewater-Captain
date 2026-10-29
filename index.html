@@ -66,6 +66,28 @@
   .reward { font-size: 17px; margin: 8px 0; } .reward b { color: var(--ok); font-variant-numeric: tabular-nums; }
   .fail-reason { font-size: 17px; margin: 10px 0; color: var(--danger); font-weight: 600; }
   button.danger { background: #7a2412; color: var(--text); }
+  .group-h { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 0 2px; }
+  .group-h:first-child { margin-top: 0; }
+  .mcard.locked { opacity: .72; border-style: dashed; }
+  .badge.lock { background: #5a3a1f; color: #ffd9a8; }
+  .badge.ok { background: #1d5a3c; color: #c9ffe1; }
+  .lock-note { font-size: 13px; color: #ffb08a; }
+  .lcard { background: #16364d; border: 1px solid #2f5d7c; border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+  .lcard h3 { margin: 0 0 4px; font-size: 18px; }
+  .lcard p { margin: 6px 0; }
+  ul.reqs { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 4px; font-size: 14px; }
+  ul.reqs li.met { color: var(--ok); } ul.reqs li.unmet { color: var(--text); }
+  .note { font-size: 13px; color: var(--muted); }
+  .banner { padding: 10px 14px; border-radius: 8px; font-weight: 700; font-size: 18px; margin: 8px 0; }
+  .banner.pass { background: #1d5a3c; border: 2px solid var(--ok); }
+  .banner.fail { background: #7a2412; border: 2px solid var(--danger); }
+  ul.plain { margin: 6px 0; padding-left: 20px; font-size: 14px; }
+  ul.tips { margin: 6px 0; padding-left: 20px; font-size: 14px; color: var(--muted); }
+  fieldset.q { border: 1px solid #2f5d7c; border-radius: 8px; margin: 10px 0; padding: 8px 12px 10px; }
+  fieldset.q legend { font-weight: 700; padding: 0 6px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; font-size: 15px; cursor: pointer; }
+  .opt input { margin-top: 4px; width: 18px; height: 18px; }
+  button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
   #hud-limit { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
   #hud-timer.late { color: var(--danger); }
   #hud-hull-box.low .v { color: var(--danger); }
@@ -170,10 +192,11 @@
   <div class="card wide">
     <h2>Mission board</h2>
     <div class="profile">
-      <span>Credits <b id="p-credits">0</b></span><span>Reputation <b id="p-rep">0</b></span><span>XP <b id="p-xp">0</b></span>
+      <span>Credits <b id="p-credits">0</b></span><span>Reputation <b id="p-rep">0</b></span><span>XP <b id="p-xp">0</b></span><span>Licenses <b id="p-licenses">none</b></span>
     </div>
     <div id="board-list" class="mlist"></div>
     <div class="row">
+      <button id="board-licenses">Licenses</button>
       <button id="board-settings" class="ghost">Settings</button>
       <button id="reset-btn" class="ghost">Reset progress</button>
       <span id="reset-note" class="hidden" style="font-size:13px;color:var(--danger)">Click Reset progress again to erase credits and best scores.</span>
@@ -194,10 +217,13 @@
       <dt>Vessel</dt><dd id="br-vessel"></dd>
       <dt>License</dt><dd id="br-license"></dd>
       <dt>Forecast</dt><dd id="br-weather"></dd>
+      <dt id="br-exam-dt" class="hidden">Exam rules</dt><dd id="br-exam" class="hidden"></dd>
     </dl>
     <p id="br-dock-tip"></p>
+    <p id="br-lock" class="lock-note hidden"></p>
     <div class="row">
       <button id="br-depart">Depart (Enter)</button>
+      <button id="br-licenses" class="ghost hidden">Open licenses</button>
       <button id="br-back" class="ghost">Back to board</button>
     </div>
   </div>
@@ -210,16 +236,46 @@
       <div class="grade-big" id="res-grade">A</div>
       <div id="res-total" style="color:var(--muted)"></div>
       <table class="score"><tbody id="res-rows"></tbody></table>
-      <div class="reward">Reward <b id="res-reward">0</b> credits &middot; Reputation +<b id="res-rep">0</b> &middot; XP +<b id="res-xp">0</b></div>
+      <div id="res-exam" class="hidden">
+        <div id="exam-banner" class="banner"></div>
+        <ul id="exam-checks" class="plain"></ul>
+        <p id="exam-award"></p>
+      </div>
+      <div id="res-tips-wrap" class="hidden"><div class="group-h">How to score higher</div><ul id="res-tips" class="tips"></ul></div>
+      <div class="reward" id="res-reward-line">Reward <b id="res-reward">0</b> credits &middot; Reputation +<b id="res-rep">0</b> &middot; XP +<b id="res-xp">0</b></div>
       <div id="res-best" style="color:var(--muted);font-size:14px"></div>
     </div>
     <div id="res-fail" class="hidden">
       <div class="fail-reason" id="res-reason"></div>
-      <p>No payment for a failed mission. Nothing is lost: retry or pick another contract.</p>
+      <p id="res-fail-note">No payment for a failed mission. Nothing is lost: retry or pick another contract.</p>
     </div>
     <div class="row">
       <button id="res-board">Mission board (Enter)</button>
       <button id="res-retry" class="ghost">Retry mission</button>
+    </div>
+  </div>
+</div>
+
+<div id="licenses" class="overlay hidden">
+  <div class="card wide">
+    <h2>Licenses</h2>
+    <p class="note">Fictional in-game credentials that unlock contracts and vessels. They are not real-world licenses.</p>
+    <div class="profile"><span>Credits <b id="l-credits">0</b></span><span>Reputation <b id="l-rep">0</b></span><span>XP <b id="l-xp">0</b></span></div>
+    <div id="lic-list"></div>
+    <div class="row"><button id="lic-back" class="ghost">Back to board</button></div>
+  </div>
+</div>
+
+<div id="quiz" class="overlay hidden">
+  <div class="card wide">
+    <h2 id="quiz-title">Written test</h2>
+    <p id="quiz-intro" class="note"></p>
+    <form id="quiz-form"><div id="quiz-body"></div></form>
+    <div id="quiz-result" class="hidden"></div>
+    <div class="row">
+      <button id="quiz-submit" type="button">Submit answers</button>
+      <button id="quiz-retake" type="button" class="hidden">Retake with new questions</button>
+      <button id="quiz-back" type="button" class="ghost">Back to licenses</button>
     </div>
   </div>
 </div>

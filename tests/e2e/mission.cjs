@@ -3,14 +3,22 @@
 // Run: npm run build && node tests/e2e/mission.cjs [outDir]
 const { chromium } = require('playwright');
 const path = require('path');
+const { startServer } = require('./serve.cjs');
 const out = process.argv[2] || '.';
-const url = 'file://' + path.resolve(__dirname, '../../dist/index.html');
 const fails = [];
 const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL', msg); } else console.log('ok  ', msg); };
 
 (async () => {
+  const server = await startServer();
+  const url = server.url;
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  // Contracts need the Small Craft Permit now; start this test from a profile that already holds it.
+  await ctx.addInitScript(() => {
+    if (!localStorage.getItem('bwc-profile')) {
+      localStorage.setItem('bwc-profile', JSON.stringify({ version: 2, credits: 0, reputation: 0, xp: 0, completed: {}, licenses: { 'small-craft-permit': { held: true, heldAt: 1, grandfathered: false, written: { attempts: 1, bestScore: 5, passed: true }, practical: { attempts: 1, bestScore: 90, passed: true } } } }));
+    }
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -20,15 +28,24 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   const waitMode = (m) => page.waitForFunction((x) => window.__bwc.mode === x, m, { timeout: 30000 });
   const tele = (x, z, h) => page.evaluate(([x, z, h]) => { const v = window.__bwc.vessel; v.x = x; v.z = z; if (h !== undefined) v.heading = h; v.u = 0; v.v = 0; v.r = 0; }, [x, z, h]);
 
+  // Teleport to each waypoint and wait until the game has actually registered it (frames can be slow
+  // under software rendering, so a fixed delay would sometimes skip a waypoint).
+  const visit = async (wps) => {
+    for (let i = 0; i < wps.length; i++) {
+      await tele(wps[i].x, wps[i].z);
+      await page.waitForFunction((n) => { const r = window.__bwc.run; return !r || r.route.next > n || r.phase !== 'underway'; }, i, { timeout: 30000 });
+    }
+  };
+
   await page.goto(url);
   await page.waitForTimeout(800);
   check(await vis('start'), 'title card shows');
   await page.click('#start-btn');
   check((await mode()) === 'board' && (await vis('board')), 'mission board opens');
-  check((await page.locator('.mcard').count()) === 3, 'board lists 3 missions');
+  check((await page.locator('.mcard').count()) === 5, 'board lists 5 missions (training, contracts, exam)');
   await page.screenshot({ path: path.join(out, 'm-board.png') });
 
-  await page.locator('.mcard').first().click();
+  await page.locator('.mcard[data-id="supply-run"]').click();
   check((await mode()) === 'briefing', 'briefing opens');
   check((await page.textContent('#br-title')) === 'Pine Isle Supply Run', 'briefing shows mission title');
   await page.screenshot({ path: path.join(out, 'm-briefing.png') });
@@ -37,7 +54,7 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
 
   // sail through every waypoint (teleport), expect docking phase
   const wps = await page.evaluate(() => window.__bwc.run.mission.waypoints);
-  for (const wp of wps) { await tele(wp.x, wp.z); await page.waitForTimeout(250); }
+  await visit(wps);
   check((await page.evaluate(() => window.__bwc.run.phase)) === 'docking', 'all waypoints -> docking phase');
   const b = await page.evaluate(() => window.__bwc.BERTHS.pine);
   // too fast first: hold must not complete
@@ -59,10 +76,10 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   await page.waitForTimeout(500);
   await page.click('#start-btn');
   check((await page.textContent('#p-credits')) === String(credits1), 'credits persist after page reload');
-  check(/Best/.test(await page.locator('.mcard .badge').first().textContent()), 'board shows best grade on completed mission');
+  check(/Best/.test(await page.locator('.mcard[data-id="supply-run"] .badge').first().textContent()), 'board shows best grade on completed mission');
 
   // repeat the mission: fresh state
-  await page.locator('.mcard').first().click();
+  await page.locator('.mcard[data-id="supply-run"]').click();
   await page.click('#br-depart');
   check((await page.evaluate(() => window.__bwc.run.integrity)) === 100 && (await page.evaluate(() => window.__bwc.run.time)) === 0, 'second attempt starts with fresh state');
 
@@ -73,7 +90,7 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   await page.keyboard.press('Escape');
   await waitMode('play');
   check((await mode()) === 'play' && !(await vis('pause')), 'Esc resumes');
-  await tele(wps[0].x, wps[0].z); await page.waitForTimeout(300);
+  await visit([wps[0]]);
   await page.click('#menu-btn');
   await page.click('#pause-restart');
   check((await page.evaluate(() => window.__bwc.run.route.next)) === 0, 'restart resets waypoint progress');
@@ -88,15 +105,16 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   // training mission completes at last waypoint (no docking)
   await page.click('#menu-btn'); await page.click('#pause-abort'); await waitMode('result');
   await page.click('#res-board');
-  await page.locator('.mcard').nth(2).click();
+  await page.locator('.mcard[data-id="training-loop"]').click();
   await page.click('#br-depart');
   const twps = await page.evaluate(() => window.__bwc.run.mission.waypoints);
-  for (const wp of twps) { await tele(wp.x, wp.z); await page.waitForTimeout(250); }
+  await visit(twps);
   await waitMode('result');
   check(/complete/.test(await page.textContent('#res-title')), 'training loop completes without docking');
 
   check(errors.length === 0, 'no console/page errors ' + JSON.stringify(errors));
   await browser.close();
+  server.close();
   console.log(fails.length ? `\n${fails.length} FAILED` : '\nALL PASSED');
   process.exit(fails.length ? 1 : 0);
 })();

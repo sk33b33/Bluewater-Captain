@@ -2,9 +2,13 @@ import * as THREE from 'three';
 import { SMALL_MOTORBOAT as P, createVesselState, stepVessel, speedKnots, headingDegrees } from './sim/vessel.js';
 import { BUOY_RADIUS, staticObstacles, resolveCollisions, edgeStatus } from './sim/world.js';
 import { MISSIONS, BERTHS, getMission } from './data/missions.js';
+import { LICENSES, getLicense } from './data/licenses.js';
+import { SMALL_CRAFT_QUESTIONS } from './data/quiz.js';
 import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, DOCK } from './sim/mission.js';
 import { loadProfile, saveProfile, recordResult, clearProfile, safeStorage } from './sim/profile.js';
 import { formatTime } from './sim/route.js';
+import { pickQuestions, scoreQuiz } from './sim/quiz.js';
+import { evaluateLicense, missionAccess, isHeld, examFor, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips } from './sim/licenses.js';
 import { createSky } from './render/sky.js';
 import { createWater } from './render/water.js';
 import { buildStatic, buildBoat, buildBuoys, buildBerth, disposeObject, updateBuoys, poseBoat, addLights } from './render/scene.js';
@@ -50,7 +54,10 @@ const touchUi = setupTouchControls(input);
 const baseObstacles = staticObstacles();
 
 const vessel = createVesselState(MISSIONS[0].start.x, MISSIONS[0].start.z, MISSIONS[0].start.heading);
-let mode = 'menu'; // menu | board | briefing | play | paused | settings | result
+let mode = 'menu'; // menu | board | briefing | licenses | quiz | play | paused | settings | result
+const QUIZ_POOLS = { 'small-craft-permit': SMALL_CRAFT_QUESTIONS };
+let quizLic = null;
+let quizQuestions = [];
 let mission = null;
 let run = null;
 let buoys = null;
@@ -90,7 +97,7 @@ function startMission(m) {
   clearMission();
   mission = m;
   run = createRun(m);
-  buoys = buildBuoys(m.waypoints);
+  buoys = buildBuoys(m.waypoints, m.start);
   scene.add(buoys.group);
   obstacles = [...baseObstacles];
   for (const g of buoys.gates) for (const p of g.positions) obstacles.push({ type: 'circle', name: 'Buoy', cx: p.x, cz: p.z, r: BUOY_RADIUS });
@@ -103,13 +110,72 @@ function startMission(m) {
   hud.warn(m.dock ? 'Underway: head for the first yellow beam' : 'Follow the yellow beams', 3000);
 }
 
+const KIND_ORDER = { training: 0, contract: 1, exam: 2 };
+function boardEntries() {
+  return [...MISSIONS].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).map((m) => ({ mission: m, access: missionAccess(profile, m) }));
+}
+function heldNames() {
+  return LICENSES.filter((l) => isHeld(profile, l.id)).map((l) => l.name);
+}
+function showBoard() {
+  mode = 'board';
+  menus.showBoard(profile, boardEntries(), heldNames());
+}
+
 function enterBoard() {
   clearMission();
   mission = null;
   placeVessel(MISSIONS[0].start);
   setPlaying(false);
-  mode = 'board';
-  menus.showBoard(profile, MISSIONS);
+  showBoard();
+}
+
+function showBriefing(m) {
+  selected = m;
+  mode = 'briefing';
+  const ex = examFor(m);
+  const lic = getLicense(m.license);
+  menus.showBriefing(m, {
+    dockName: m.dock ? BERTHS[m.dock].name : null,
+    access: missionAccess(profile, m),
+    exam: ex ? ex.exam : null,
+    licenseName: lic ? lic.name : '',
+  });
+}
+
+function showLicenses() {
+  clearMission();
+  setPlaying(false);
+  mode = 'licenses';
+  menus.showLicenses(profile, LICENSES.map((lic) => ({ lic, ev: evaluateLicense(profile, lic) })));
+}
+
+function beginWritten(licId) {
+  quizLic = getLicense(licId);
+  if (!quizLic || !quizLic.written || !QUIZ_POOLS[licId]) return;
+  quizQuestions = pickQuestions(QUIZ_POOLS[licId], quizLic.written.questions);
+  mode = 'quiz';
+  menus.showQuiz(quizLic, quizQuestions);
+}
+
+function submitQuiz(answers) {
+  const outcome = scoreQuiz(quizQuestions, answers, quizLic.written.passMark);
+  recordWritten(profile, quizLic.id, outcome);
+  saveProfile(storage, profile);
+  menus.showQuizResult(quizLic, quizQuestions, answers, outcome);
+}
+
+// Depart from the briefing: re-check access, charge the exam fee, then sail.
+function depart() {
+  if (!selected) return;
+  const access = missionAccess(profile, selected);
+  if (!access.ok) { showBriefing(selected); return; }
+  if (selected.kind === 'exam') {
+    const paid = startExam(profile, selected);
+    if (!paid.ok) { showBriefing(selected); return; }
+    saveProfile(storage, profile);
+  }
+  startMission(selected);
 }
 
 function respawn(reason, manual = false) {
@@ -126,9 +192,17 @@ function finish() {
   recordResult(profile, mission.id, result);
   saveProfile(storage, profile);
   const rec = profile.completed[mission.id];
+  let exam = null;
+  const ex = examFor(mission);
+  if (ex) {
+    const judged = judgeExam(run, result, ex.exam);
+    const out = applyExamOutcome(profile, ex.lic, result, judged);
+    saveProfile(storage, profile);
+    exam = { judged, awarded: out.awarded, licenseName: ex.lic.name, unlocks: ex.lic.unlocks, bonus: ex.lic.bonus };
+  }
   mode = 'result';
   setPlaying(false);
-  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits });
+  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam });
 }
 
 function failMission(reason) {
@@ -157,13 +231,18 @@ function handleEvents(events) {
 // ---- menus
 const menus = createMenus({
   onStart: () => enterBoard(),
-  onSelect: (id) => { selected = getMission(id); mode = 'briefing'; menus.showBriefing(selected, selected.dock ? BERTHS[selected.dock].name : null); },
-  onDepart: () => { if (selected) startMission(selected); },
+  onSelect: (id) => showBriefing(getMission(id)),
+  onDepart: () => depart(),
   onBoard: () => enterBoard(),
-  onRetry: () => { if (mission) startMission(mission); },
+  onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission); },
+  onLicenses: () => showLicenses(),
+  onWritten: (id) => beginWritten(id),
+  onQuizRetake: () => { if (quizLic) beginWritten(quizLic.id); },
+  onQuizSubmit: (answers) => submitQuiz(answers),
+  onExam: (id) => { const lic = getLicense(id); if (lic && lic.exam) showBriefing(getMission(lic.exam.mission)); },
   onMenu: () => openPause(),
   onResume: () => closePause(),
-  onRestart: () => { if (mission) startMission(mission); },
+  onRestart: () => { if (mission && mission.kind !== 'exam') startMission(mission); },
   onAbort: () => { const e = run && abortRun(run); closePauseUi(); if (e) failMission(e.reason); else enterBoard(); },
   onSettings: () => { settingsReturn = mode; mode = 'settings'; menus.showPause(false); },
   onReset: () => { profile = clearProfile(storage); enterBoard(); },
@@ -172,7 +251,7 @@ const menus = createMenus({
 function openPause() {
   if (mode !== 'play') return;
   mode = 'paused';
-  menus.showPause(true);
+  menus.showPause(true, { canRestart: mission.kind !== 'exam', abortLabel: mission.kind === 'exam' ? 'Abort exam (fee not refunded)' : 'Abort mission' });
 }
 function closePauseUi() { document.getElementById('pause').classList.add('hidden'); }
 function closePause() {
@@ -180,7 +259,7 @@ function closePause() {
   if (mode === 'paused') { mode = 'play'; input.clearPressed(); }
   else if (mode === 'settings') {
     mode = settingsReturn;
-    if (mode === 'board') menus.showBoard(profile, MISSIONS);
+    if (mode === 'board') showBoard();
     else menus.showStart();
   }
 }
@@ -254,10 +333,12 @@ function frame(now) {
     if (mode === 'play') openPause();
     else if (mode === 'paused' || mode === 'settings') closePause();
     else if (mode === 'briefing') enterBoard();
+    else if (mode === 'licenses') enterBoard();
+    else if (mode === 'quiz') showLicenses();
   }
   if (input.wasPressed('Enter') || input.wasPressed('Space')) {
     if (mode === 'menu') enterBoard();
-    else if (mode === 'briefing') { if (selected) startMission(selected); }
+    else if (mode === 'briefing') depart();
     else if (mode === 'result') enterBoard();
   }
 
@@ -335,6 +416,8 @@ window.__bwc = {
   get run() { return run; },
   get profile() { return profile; },
   BERTHS,
+  LICENSES,
+  get quiz() { return quizQuestions; }, // debug: lets the headless test read the correct answers
 };
 
 setPlaying(false);

@@ -3,7 +3,9 @@ export function createInput(target = window) {
   const keys = new Set();
   const pressed = new Set();
   target.addEventListener('keydown', (e) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+    // Only steal arrow/space keys while sailing; menus (quiz radios, sliders, buttons) need them.
+    const menuOpen = !!document.querySelector('.overlay:not(.hidden)');
+    if (!menuOpen && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     if (!keys.has(e.code)) pressed.add(e.code);
     keys.add(e.code);
   });

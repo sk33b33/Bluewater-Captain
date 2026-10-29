@@ -11,6 +11,12 @@
 - Mission start positions are teleports (no tug/undocking sequence); the boat starts inside a berth.
 - Engine switched from UE5 to browser (D-005); risks R1, R7, R8 below were written for UE5.
 
+- Stage 3 estimates: exam pass mark, collision limit, deadline, fee and training rewards are unplayed. A player short of credits must replay training to afford a retake (intended, but could feel grindy).
+- The Coastal Skipper has no exam, training or written test yet; it can never be earned in this stage by design.
+- Profile is editable in browser storage (no server, no anti-cheat).
+- Wrong-answer review in the written test names the correct option; there is no explanation audio/graphics and the pool is only 10 questions, so repeat players will see repeats.
+- End-to-end browser tests are slow under software rendering; they passed once each after the stability fixes, so occasional timeouts are still possible.
+
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |
 |----|------|-----------|--------|-----------|

@@ -45,6 +45,15 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** complete the mission loop repeatedly without breaking state.
 
 ## Stage 3 — License and career progression
+**Status: implemented 2026-10-29, awaiting user testing and approval.** Acceptance criteria used:
+1. Small Craft Permit path: two training tasks (score 50+ each), a written test (4 of 5 correct, free retakes with new shuffled questions), and a practical exam mission (score 70+, at most 2 damaging collisions, 100-credit fee per attempt).
+2. Prerequisites enforced from data: a license can require other licenses, reputation, training scores, the written test and credits for the exam fee.
+3. Permissions enforced: contracts need the permit; training is open to everyone; vessel use is checked per class, ready for Stage 4.
+4. **Gate:** passing the exam awards the license (once), pays the bonus and unlocks contracts and the vessel; failing leaves progression unchanged except attempts and best score, keeps contracts locked and costs another fee to retake.
+5. Score feedback: every result explains deductions and shows coaching tips for the weakest categories; exam results list each pass check.
+6. Career profile saved (version 2) with licenses, exam and test history; Stage 2 saves migrate (players who already ran contracts keep the permit).
+7. Next tier (Coastal Skipper) exists in data with prerequisites (permit + reputation 10) enforced and shown as locked; its exam is not yet playable.
+**Exclusions kept out:** playable second exam, new vessels (Stage 4), weather (Stage 5), real-world license content.
 - Small Craft Permit training and exam.
 - License prerequisites, in-game permissions, score feedback, career profile/save.
 - One next-tier license represented in data, even if only the first exam is fully playable.

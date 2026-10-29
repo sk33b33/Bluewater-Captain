@@ -1,17 +1,18 @@
-// Minimal career profile (Stage 2): credits, reputation, XP and best results per mission.
-// Versioned so Stage 3 can migrate it. Storage is injected so it can be tested.
+// Career profile: credits, reputation, XP, best results per mission and licenses.
+// v1 (Stage 2) had no licenses; v1 saves are migrated on load. Storage is injected so it can be tested.
 const KEY = 'bwc-profile';
-export const PROFILE_VERSION = 1;
+export const PROFILE_VERSION = 2;
+const LEGACY_CONTRACT_IDS = ['supply-run', 'return-run']; // v1 players who ran these keep access to them
 
 export function defaultProfile() {
-  return { version: PROFILE_VERSION, credits: 0, reputation: 0, xp: 0, completed: {} };
+  return { version: PROFILE_VERSION, credits: 0, reputation: 0, xp: 0, completed: {}, licenses: {} };
 }
 
 const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 export function sanitizeProfile(raw) {
   const p = defaultProfile();
-  if (!raw || typeof raw !== 'object' || raw.version !== PROFILE_VERSION) return p;
+  if (!raw || typeof raw !== 'object' || (raw.version !== 1 && raw.version !== PROFILE_VERSION)) return p;
   p.credits = Math.max(0, num(raw.credits));
   p.reputation = Math.max(0, num(raw.reputation));
   p.xp = Math.max(0, num(raw.xp));
@@ -24,6 +25,18 @@ export function sanitizeProfile(raw) {
         bestGrade: typeof r.bestGrade === 'string' ? r.bestGrade.slice(0, 1) : 'D',
         bestTime: num(r.bestTime, null),
       };
+    }
+  }
+  if (raw.version === 1) {
+    // Migration: Stage 2 had no licenses. Grant the permit to anyone who already completed a contract run.
+    if (LEGACY_CONTRACT_IDS.some((id) => p.completed[id])) {
+      p.licenses['small-craft-permit'] = { held: true, heldAt: null, grandfathered: true, written: { attempts: 0, bestScore: 0, passed: true }, practical: { attempts: 0, bestScore: 0, passed: true } };
+    }
+  } else if (raw.licenses && typeof raw.licenses === 'object') {
+    for (const [id, l] of Object.entries(raw.licenses)) {
+      if (!l || typeof l !== 'object') continue;
+      const part = (x) => ({ attempts: Math.max(0, Math.floor(num(x && x.attempts))), bestScore: Math.max(0, num(x && x.bestScore)), passed: !!(x && x.passed) });
+      p.licenses[id] = { held: !!l.held, heldAt: num(l.heldAt, null), grandfathered: !!l.grandfathered, written: part(l.written), practical: part(l.practical) };
     }
   }
   return p;

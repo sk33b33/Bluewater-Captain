@@ -2,15 +2,18 @@
 // Run: npm run build && node tests/e2e/touch.cjs [outDir]
 const { chromium } = require('playwright');
 const path = require('path');
+const { startServer } = require('./serve.cjs');
 const out = process.argv[2] || '.';
 (async () => {
+  const server = await startServer();
+  const url = server.url;
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  await page.goto('file://' + path.resolve(__dirname, '../../dist/index.html'));
+  await page.goto(url);
   await page.waitForTimeout(800);
   const cdp = await ctx.newCDPSession(page);
   const touch = (type, id, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id }] });
@@ -37,5 +40,6 @@ const out = process.argv[2] || '.';
   const h0 = 1.5707963;
   console.log(JSON.stringify({ thr, mid, steerThumbAfterRelease: steerThumb, turnedRight: mid.h > h0 + 0.02, errors }));
   await browser.close();
+  server.close();
   if (errors.length || !(mid.u > 0.5) || !(mid.h > h0 + 0.02) || !centred) process.exit(1);
 })();

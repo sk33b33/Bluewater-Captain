@@ -31,7 +31,7 @@ test('gate buoys never sit inside land, piers or islands, and leave a gap to sai
   const obs = staticObstacles();
   for (const m of MISSIONS) {
     m.waypoints.forEach((_, i) => {
-      const [a, b] = gateBuoys(m.waypoints, i);
+      const [a, b] = gateBuoys(m.waypoints, i, m.start);
       for (const p of [a, b]) {
         for (const o of obs) assert.equal(circleVsObstacle({ x: p.x, z: p.z, r: BUOY_RADIUS + 2 }, o), null, `${m.id} wp${i}`);
       }
@@ -42,7 +42,7 @@ test('gate buoys never sit inside land, piers or islands, and leave a gap to sai
 
 test('missions have the fields the board needs', () => {
   for (const m of MISSIONS) {
-    for (const k of ['id', 'title', 'summary', 'from', 'to', 'cargo', 'deadline', 'reward', 'risk', 'requires', 'weather', 'start', 'waypoints']) assert.ok(m[k] !== undefined, `${m.id}.${k}`);
+    for (const k of ['id', 'title', 'summary', 'from', 'to', 'cargo', 'deadline', 'reward', 'risk', 'kind', 'vesselClass', 'weather', 'start', 'waypoints']) assert.ok(m[k] !== undefined, `${m.id}.${k}`);
     if (m.dock) assert.ok(BERTHS[m.dock]);
   }
   assert.equal(getMission('nope'), null);
@@ -297,4 +297,25 @@ test('the same mission can be run repeatedly with fresh state each time', () => 
   assert.equal(b.run.phase, 'complete');
   assert.notEqual(a.run, b.run);
   assert.equal(Math.round(a.run.time), Math.round(b.run.time));
+});
+
+import { judgeExam } from '../src/sim/licenses.js';
+import { getLicense } from '../src/data/licenses.js';
+test('the practical exam is passable: the scripted captain meets the pass mark and collision limit', () => {
+  const exam = getMission('small-craft-exam');
+  const { run } = autopilot(exam);
+  assert.equal(run.phase, 'complete');
+  const r = scoreRun(run);
+  const j = judgeExam(run, r, getLicense('small-craft-permit').exam);
+  assert.ok(j.passed, JSON.stringify({ total: r.total, checks: j.checks }));
+});
+
+test('a reckless run fails the exam: hull wrecked or too many collisions', () => {
+  const exam = getMission('small-craft-exam');
+  const run = createRun(exam);
+  for (let i = 0; i < 3; i++) applyImpact(run, 3);
+  run.phase = 'complete'; run.dock = { centre: 0, angleDeg: 0 };
+  const j = judgeExam(run, scoreRun(run), getLicense('small-craft-permit').exam);
+  assert.equal(j.passed, false);
+  assert.equal(j.checks[1].ok, false);
 });

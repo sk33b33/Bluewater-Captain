@@ -42,3 +42,27 @@ Run `npm install && npm run build`, then open `dist/index.html` (or `npm start` 
 | 15 | Let the clock pass the deadline | Timer turns red, Timing loses points; at double the deadline the mission fails | |
 | 16 | Phone: all of the above with touch controls | Docking panel readable, nothing hidden behind controls | |
 | 17 | Board > Reset progress (click twice) | Credits, rep, XP and best grades return to zero | |
+
+
+# Stage 3 Manual Test Checklist
+
+Start from a fresh profile (Mission board > Reset progress, click twice) to see the whole path.
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Board on a fresh profile | Training open; both contracts and the exam show Locked with the reason | |
+| 2 | Open a locked contract | Briefing says it is locked, Depart disabled, "Open licenses" button works | |
+| 3 | Licenses screen | Small Craft Permit Available with unmet checks; Coastal Skipper Locked (needs permit + reputation 10) | |
+| 4 | Practical exam button | Disabled with the missing items listed | |
+| 5 | Take written test, answer badly | "Not yet", what to review with correct answers; retake gives different questions/order | |
+| 6 | Pass the written test | Check mark appears on the Licenses screen | |
+| 7 | Run Coastal Training Loop and Harbor Docking Drill | Credits arrive; training checks turn green at score 50+ | |
+| 8 | Results screens | Tips appear for weak categories; clean run shows none | |
+| 9 | Start the exam | Briefing shows fee 100, pass mark 70, collision limit 2; Depart charges the fee | |
+| 10 | Pause during the exam | No Restart button; abort label mentions the fee | |
+| 11 | Abort the exam | "Exam failed", fee not refunded, license not awarded, contracts still locked | |
+| 12 | Retake and crash 3 times (or score under 70) | "Exam not passed" with the failed check marked, retake offered | |
+| 13 | Retake and pass | "Exam passed", bonus, unlock text; contracts unlock; exam card now says already held | |
+| 14 | Reload the page | License still held; a contract starts | |
+| 15 | Phone: licenses, quiz and results screens | Readable, buttons reachable, nothing cut off | |
+| 16 | Coastal Skipper after earning the permit | Still locked until reputation reaches 10; no exam available | |

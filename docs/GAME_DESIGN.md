@@ -91,3 +91,13 @@ No multiplayer, procedural planet, economy simulation, fully simulated ship inte
 - **Scoring:** Safety (hull condition), Navigation (respawns), Timing (seconds over the deadline), Docking (distance from berth centre and angle). Every deduction is explained on the results screen.
 - **Failure:** hull breach, running past twice the deadline, or abort. No payment, no other penalty.
 - **Rewards:** credits scale from 50% to 100% of the mission reward by score; reputation and XP are recorded for the Stage 3 license system.
+
+
+## Stage 3 implementation notes: licenses and career
+- **Small Craft Permit path:** two training tasks, a written test and a practical exam. Training is open to everyone; contracts need the permit; the exam needs training, the written test and a 100-credit fee.
+- **Exam rules:** score 70+ and at most 2 damaging collisions. The exam pays nothing; passing awards the license plus a one-time bonus. A failed or aborted attempt keeps the fee and can be retaken.
+- **Why a fee:** it makes the exam a decision (prepare first) and gives training runs a purpose. Training can be replayed for credits, so nobody is stuck.
+- **Permissions:** each license lists the vessel classes it permits. Vessel access is checked per class so Stage 4's workboats and passenger craft can be gated behind the Coastal Skipper.
+- **Next tier:** Coastal Skipper needs the Small Craft Permit and reputation 10. Its exam arrives later.
+- **Feedback:** results explain every deduction and add coaching tips for the weakest categories.
+- Licenses are fictional game credentials, not real-world qualifications or safety training.
