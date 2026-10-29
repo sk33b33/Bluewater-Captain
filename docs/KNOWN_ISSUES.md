@@ -12,10 +12,17 @@
 - Engine switched from UE5 to browser (D-005); risks R1, R7, R8 below were written for UE5.
 
 - Stage 3 estimates: exam pass mark, collision limit, deadline, fee and training rewards are unplayed. A player short of credits must replay training to afford a retake (intended, but could feel grindy).
-- The Coastal Skipper has no exam, training or written test yet; it can never be earned in this stage by design.
+- Reaching the Coastal Skipper takes a long grind: permit, reputation 10 (about two contracts), two trials, the written test and a 250-credit exam. The pacing is a guess.
 - Profile is editable in browser storage (no server, no anti-cheat).
 - Wrong-answer review in the written test names the correct option; there is no explanation audio/graphics and the pool is only 10 questions, so repeat players will see repeats.
 - End-to-end browser tests are slow under software rendering; they passed once each after the stability fixes, so occasional timeouts are still possible.
+
+- Stage 4 estimates: vessel stats, deadline factors (1.3 and 1.1), wind strength (8 kn) and the 250-credit Skipper fee are untested by a human. The Coastal Cat may be frustrating in the harbor basin, which is only about 150 m wide.
+- Wind is a constant drift, not changing weather: no gusts, no wind effect on waves or heading (Stage 5).
+- Docking speed is measured through the water, so a strong drift can carry a boat that reads as "still" out of the berth; the hold resets when it leaves.
+- Each vessel is one fixed placeholder model; the workboat's crane and the cat's windows are boxes.
+- No vessel purchase or rental: licenses unlock vessels for free.
+- Passenger Shuttle and Heavy Gear Haul score the same way as other jobs; there is no passenger comfort or cargo-shift scoring yet.
 
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |

@@ -1,0 +1,52 @@
+// Scripted captain used by the tests: steers to each waypoint, then eases into the berth.
+// Works for any vessel and wind, so tests can prove each mission is completable with each vessel.
+import { createVesselState, stepVessel } from '../../src/sim/vessel.js';
+import { staticObstacles, resolveCollisions } from '../../src/sim/world.js';
+import { BERTHS } from '../../src/data/missions.js';
+import { createRun, stepRun, applyImpact } from '../../src/sim/mission.js';
+import { WIND, windVector } from '../../src/sim/wind.js';
+
+const DT = 1 / 60;
+
+export function autopilot(mission, vessel, { wind = WIND, maxSeconds = 600 } = {}) {
+  const run = createRun(mission, vessel);
+  const s = createVesselState(mission.start.x, mission.start.z, mission.start.heading);
+  const obs = staticObstacles();
+  const w = windVector(wind);
+  const dockB = mission.dock ? BERTHS[mission.dock] : null;
+  const cruise = Math.min(8, vessel.maxSpeed * 0.8);
+  let events = [];
+  for (let i = 0; i < 60 * maxSeconds && run.phase !== 'complete' && run.phase !== 'failed'; i++) {
+    // Follow the line from the previous mark (or the start) to the next one, aiming a little ahead on it,
+    // so the boat passes through the middle of each gate instead of cutting the corner.
+    let vt;
+    let from, to;
+    if (run.phase === 'docking') {
+      from = mission.waypoints[mission.waypoints.length - 1];
+      to = { x: dockB.cx, z: dockB.cz };
+      const dist = Math.hypot(to.x - s.x, to.z - s.z);
+      vt = dist > 45 ? cruise * 0.75 : Math.max(0.6, dist * 0.1);
+    } else {
+      const idx = run.route.next;
+      from = idx === 0 ? mission.start : mission.waypoints[idx - 1];
+      to = mission.waypoints[idx];
+      vt = cruise;
+    }
+    const sx = to.x - from.x, sz = to.z - from.z;
+    const segLen = Math.hypot(sx, sz) || 1;
+    const t = Math.max(0, Math.min(1, ((s.x - from.x) * sx + (s.z - from.z) * sz) / (segLen * segLen)));
+    const ahead = Math.min(vessel.length * 2.5, segLen * (1 - t));
+    const tx = from.x + sx * t + (sx / segLen) * ahead;
+    const tz = from.z + sz * t + (sz / segLen) * ahead;
+    const want = Math.atan2(tx - s.x, -(tz - s.z));
+    const err = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
+    const speed = Math.hypot(s.u, s.v);
+    const target = Math.abs(err) > 0.7 ? Math.min(vt, 3) : vt;
+    const throttle = Math.max(-1, Math.min(1, (target - speed) * 0.6));
+    stepVessel(s, { throttle, steer: Math.max(-1, Math.min(1, err * 2.5)) }, vessel, DT, w);
+    const col = resolveCollisions(s, vessel, obs);
+    if (col.hit) { const e = applyImpact(run, col.impact, vessel.hullStrength); if (e) events.push(e); }
+    events = events.concat(stepRun(run, s, DT, BERTHS));
+  }
+  return { run, s, events };
+}

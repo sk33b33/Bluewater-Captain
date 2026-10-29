@@ -98,6 +98,15 @@ No multiplayer, procedural planet, economy simulation, fully simulated ship inte
 - **Exam rules:** score 70+ and at most 2 damaging collisions. The exam pays nothing; passing awards the license plus a one-time bonus. A failed or aborted attempt keeps the fee and can be retaken.
 - **Why a fee:** it makes the exam a decision (prepare first) and gives training runs a purpose. Training can be replayed for credits, so nobody is stuck.
 - **Permissions:** each license lists the vessel classes it permits. Vessel access is checked per class so Stage 4's workboats and passenger craft can be gated behind the Coastal Skipper.
-- **Next tier:** Coastal Skipper needs the Small Craft Permit and reputation 10. Its exam arrives later.
+- **Next tier:** Coastal Skipper needs the Small Craft Permit and reputation 10. It became earnable in Stage 4 (see below).
 - **Feedback:** results explain every deduction and add coaching tips for the weakest categories.
 - Licenses are fictional game credentials, not real-world qualifications or safety training.
+
+
+## Stage 4 implementation notes: vessels
+- **Fleet:** Harbor Skiff (Small Craft Permit), Harbor Workboat and Coastal Cat (Coastal Skipper).
+- **What differs:** top speed, pick-up, astern power (stopping distance), low-speed resistance (coasting), turn authority, sideways slip, wind leeway, hull size and toughness. Dimensions drive the placeholder model, the collision hull and the camera distance.
+- **Wind:** steady 8 knots from the north-west. A light skiff and a tall passenger craft drift noticeably when slow; a heavy workboat hardly does. The HUD shows speed and the direction it pushes your bow.
+- **Jobs:** most contracts accept any vessel you are licensed for; Heavy Gear Haul needs the workboat and the Passenger Shuttle needs the Coastal Cat. Deadlines are written for the skiff and scaled by vessel.
+- **Sailing under instruction:** training trials and the exam may use a class you do not hold yet, once you meet the license prerequisites. Contracts never do.
+- **Coastal Skipper:** needs the permit and reputation 10; two sea trials (score 50+), a written test (4 of 5) and a workboat exam (score 70+, at most 2 damaging collisions, fee 250).

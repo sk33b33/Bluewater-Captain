@@ -4,9 +4,11 @@ import { formatTime } from '../sim/route.js';
 import { DOCK } from '../sim/mission.js';
 import { KIND_LABEL } from '../data/missions.js';
 import { VESSEL_CLASSES } from '../data/licenses.js';
+import { VESSELS } from '../data/vessels.js';
+import { statRows } from '../sim/handling.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz'];
+const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz', 'fleet'];
 
 const FAIL_TEXT = {
   hull: 'Hull breached: the vessel took too much damage.',
@@ -44,6 +46,10 @@ export function createMenus(h) {
   $('board-settings').addEventListener('click', () => h.onSettings());
   $('board-licenses').addEventListener('click', () => h.onLicenses());
   $('lic-back').addEventListener('click', () => h.onBoard());
+  $('board-fleet').addEventListener('click', () => h.onFleet());
+  $('fleet-back').addEventListener('click', () => h.onBoard());
+  $('fleet-licenses').addEventListener('click', () => h.onLicenses());
+  $('br-vessel-select').addEventListener('change', (e) => h.onPickVessel(e.target.value));
   $('quiz-back').addEventListener('click', () => h.onLicenses());
   $('quiz-retake').addEventListener('click', () => h.onQuizRetake());
   $('quiz-form').addEventListener('submit', (e) => e.preventDefault());
@@ -68,13 +74,14 @@ export function createMenus(h) {
     showStart() { show('start'); },
 
     // entries: [{ mission, access: {ok, reason} }] in board order
-    showBoard(profile, entries, heldNames) {
+    showBoard(profile, entries, heldNames, vesselName) {
       resetArmed = false;
       $('reset-note').classList.add('hidden');
       $('p-credits').textContent = String(profile.credits);
       $('p-rep').textContent = String(profile.reputation);
       $('p-xp').textContent = String(profile.xp);
       $('p-licenses').textContent = heldNames.length ? heldNames.join(', ') : 'none yet';
+      $('p-vessel').textContent = vesselName;
       const list = $('board-list');
       list.textContent = '';
       let lastKind = null;
@@ -108,16 +115,31 @@ export function createMenus(h) {
       show('board');
     },
 
-    // ctx: { dockName, access, exam: {fee, minScore, maxCollisions} | null, licenseName }
+    // ctx: { dockName, access, exam: {fee, minScore, maxCollisions} | null, licenseName, vessels: [usable], vessel: chosen | null, deadline }
     showBriefing(m, ctx) {
       $('br-title').textContent = m.title;
       $('br-summary').textContent = m.summary;
       $('br-route').textContent = `${m.from} → ${m.to}`;
       $('br-cargo').textContent = m.cargo;
-      $('br-deadline').textContent = `${formatTime(m.deadline)} from departure (late arrivals lose points)`;
+      $('br-deadline').textContent = `${formatTime(ctx.deadline)} from departure for this vessel (late arrivals lose points)`;
       $('br-risk').textContent = m.risk;
       $('br-reward').textContent = m.kind === 'exam' ? 'No payment. Passing earns the license and a reputation bonus.' : `${m.reward} credits at best (scaled by your score)`;
-      $('br-vessel').textContent = `${VESSEL_CLASSES[m.vesselClass]} (Harbor Skiff)`;
+      const sel = $('br-vessel-select');
+      sel.textContent = '';
+      if (ctx.vessels.length > 1) {
+        for (const v of ctx.vessels) {
+          const o = document.createElement('option');
+          o.value = v.id;
+          o.textContent = `${v.name} (${VESSEL_CLASSES[v.class]})`;
+          if (ctx.vessel && v.id === ctx.vessel.id) o.selected = true;
+          sel.appendChild(o);
+        }
+        sel.classList.remove('hidden');
+        $('br-vessel').textContent = '';
+      } else {
+        sel.classList.add('hidden');
+        $('br-vessel').textContent = ctx.vessel ? `${ctx.vessel.name} (${VESSEL_CLASSES[ctx.vessel.class]})` : `Needs: ${m.vesselClasses.map((c) => VESSEL_CLASSES[c]).join(' or ')}`;
+      }
       $('br-license').textContent = m.kind === 'training' ? 'None: sailing under instruction' : m.kind === 'exam' ? `Exam for the ${ctx.licenseName}` : ctx.licenseName;
       $('br-weather').textContent = m.weather;
       const showExam = !!ctx.exam;
@@ -165,6 +187,7 @@ export function createMenus(h) {
       $('res-reward').textContent = String(r.reward);
       $('res-rep').textContent = String(r.reputation);
       $('res-xp').textContent = String(r.xp);
+      $('res-vessel').textContent = info.vesselName ? `Vessel: ${info.vesselName}` : '';
       $('res-best').textContent = `${info.newBest ? 'New best score! ' : ''}Best ${info.bestGrade} (${info.bestScore}) · fastest ${formatTime(info.bestTime)} · played ${info.plays}× · balance ${info.credits} credits`;
       $('res-retry').textContent = m.kind === 'exam' ? 'Exam briefing' : 'Retry mission';
       $('res-retry').classList.toggle('hidden', !!(ex && ex.awarded));
@@ -241,6 +264,46 @@ export function createMenus(h) {
         list.appendChild(card);
       }
       show('licenses');
+    },
+
+    // rows: from fleetStatus(profile)
+    showFleet(profile, rows) {
+      const list = $('fleet-list');
+      list.textContent = '';
+      for (const r of rows) {
+        const v = r.vessel;
+        const card = el('div', 'vcard' + (r.active ? ' active' : ''));
+        card.dataset.id = v.id;
+        const head = el('h3', '', `${v.name}  `);
+        head.appendChild(el('span', 'badge', VESSEL_CLASSES[v.class]));
+        const state = r.active ? el('span', 'badge grade', 'Active') : r.permitted ? el('span', 'badge ok', 'Licensed') : r.selectable ? el('span', 'badge', 'Starter') : el('span', 'badge lock', 'Locked');
+        state.style.marginLeft = '6px';
+        head.appendChild(state);
+        card.appendChild(head);
+        card.appendChild(el('p', 'note', v.blurb));
+        card.appendChild(el('p', 'note', `${v.length} m long, ${v.beam} m wide, draft ${v.draft} m, ${v.massTonnes} t`));
+        const grid = el('div', 'stats');
+        for (const row of statRows(v, VESSELS)) {
+          const bar = el('div', 'bar ' + (row.better === 'lower' ? 'lower' : ''));
+          const fillBar = document.createElement('i');
+          fillBar.style.width = `${Math.round(row.ratio * 100)}%`;
+          bar.appendChild(fillBar);
+          grid.append(el('span', '', `${row.label}${row.better === 'lower' ? ' (lower is better)' : ''}`), bar, el('span', 'val', row.display));
+        }
+        card.appendChild(grid);
+        const actions = el('div', 'row');
+        actions.style.marginTop = '4px';
+        const use = el('button', r.active ? 'ghost' : '', r.active ? 'In use' : 'Use this vessel');
+        use.type = 'button';
+        use.id = `use-${v.id}`;
+        use.disabled = !r.selectable || r.active;
+        use.addEventListener('click', () => h.onUseVessel(v.id));
+        actions.appendChild(use);
+        card.appendChild(actions);
+        if (!r.selectable) card.appendChild(el('p', 'lock-note', `${r.reason}. Earn it on the Licenses screen.`));
+        list.appendChild(card);
+      }
+      show('fleet');
     },
 
     showQuiz(lic, questions) {

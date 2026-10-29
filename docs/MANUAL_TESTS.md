@@ -66,3 +66,28 @@ Start from a fresh profile (Mission board > Reset progress, click twice) to see 
 | 14 | Reload the page | License still held; a contract starts | |
 | 15 | Phone: licenses, quiz and results screens | Readable, buttons reachable, nothing cut off | |
 | 16 | Coastal Skipper after earning the permit | Still locked until reputation reaches 10; no exam available | |
+
+
+# Stage 4 Manual Test Checklist
+
+If you do not want to grind the Coastal Skipper, ask for a test profile with both licenses.
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Board > Fleet | Three vessels with dimensions, six stat bars, license state; skiff is active | |
+| 2 | Compare cards | Workboat: tougher, slower to stop and turn, less wind drift. Cat: longest to stop, widest turns, most wind drift | |
+| 3 | Workboat/Cat with only the permit | "Locked", Use button disabled, text says Coastal Skipper | |
+| 4 | Board with only the permit | Heavy Gear Haul and Passenger Shuttle show Locked with the reason | |
+| 5 | Drive the skiff on Harbor Docking Drill | Quick, tight turns; wind nudges it sideways when slow | |
+| 6 | Reach reputation 10, then Workboat Sea Trials | Opens; workboat feels heavy; braking needs lots of room | |
+| 7 | Passenger Craft Sea Trials | Cat swings wide, takes long to stop, drifts in the wind | |
+| 8 | Coastal Skipper on Licenses | Requirements tick off; written test (pool of 8); exam fee 250 | |
+| 9 | Coastal Skipper exam in the workboat | Briefing says workboat only; passing awards the license and unlocks both vessels | |
+| 10 | Fleet after the Skipper | Use buttons enabled; selecting a vessel changes the model and the board's Vessel line | |
+| 11 | Supply Run briefing | A vessel dropdown with three vessels; the deadline changes with the choice | |
+| 12 | Heavy Gear Haul / Passenger Shuttle | Assigned vessel shown, no dropdown | |
+| 13 | HUD during a mission | Wind speed and an arrow; arrow turns as you turn | |
+| 14 | Dock with each vessel | Possible with all three; the Cat is hardest | |
+| 15 | Bump the pier with the workboat and the skiff | Workboat loses less hull per hit | |
+| 16 | Reload | Active vessel and licenses are kept | |
+| 17 | Phone: fleet screen and a mission with the Cat | Readable; controls and camera usable | |

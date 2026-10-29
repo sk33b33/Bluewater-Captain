@@ -6,7 +6,7 @@ import { SMALL_CRAFT_QUESTIONS } from '../src/data/quiz.js';
 import { pickQuestions, scoreQuiz } from '../src/sim/quiz.js';
 import { createRun } from '../src/sim/mission.js';
 import { defaultProfile, sanitizeProfile, loadProfile, saveProfile, recordResult } from '../src/sim/profile.js';
-import { evaluateLicense, missionAccess, canUseVessel, permittedClasses, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips, examFor, isHeld } from '../src/sim/licenses.js';
+import { evaluateLicense, missionAccess, canUseVessel, classUsableForMission, permittedClasses, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips, examFor, isHeld } from '../src/sim/licenses.js';
 
 const permit = getLicense('small-craft-permit');
 const skipper = getLicense('coastal-skipper');
@@ -40,7 +40,7 @@ test('every license references real missions and vessel classes', () => {
   for (const m of MISSIONS) {
     assert.ok(['training', 'contract', 'exam'].includes(m.kind), m.id);
     if (m.kind !== 'training') assert.ok(getLicense(m.license), `${m.id} license`);
-    assert.ok(VESSEL_CLASSES[m.vesselClass]);
+    for (const c of m.vesselClasses) assert.ok(VESSEL_CLASSES[c], `${m.id} class ${c}`);
   }
 });
 
@@ -53,8 +53,8 @@ test('next-tier license is represented in data with prerequisites enforced', () 
   p.reputation = 10;
   const ev = evaluateLicense(p, skipper);
   assert.equal(ev.status, 'available');
-  assert.equal(ev.canPractical, false, 'its exam is not playable yet');
-  assert.ok(ev.comingSoon);
+  assert.equal(ev.canPractical, false, 'training, written test and fee still missing');
+  assert.ok(ev.practicalBlockers.some((b) => /training/i.test(b)));
 });
 
 // ---- requirements
@@ -103,8 +103,9 @@ test('training is open to all; contracts and exam are gated', () => {
 test('vessel permissions follow the licenses held', () => {
   const p = defaultProfile();
   assert.equal(canUseVessel(p, 'small-motorboat'), false);
-  assert.equal(canUseVessel(p, 'small-motorboat', { training: true }), true);
-  assert.equal(canUseVessel(p, 'workboat', { training: true }), false);
+  assert.equal(classUsableForMission(p, loop, 'small-motorboat'), true, 'training uses the skiff under instruction');
+  assert.equal(classUsableForMission(p, supply, 'small-motorboat'), false, 'but not for contracts');
+  assert.equal(classUsableForMission(p, getMission('workboat-trials'), 'workboat'), false, 'workboat trials locked until Skipper prerequisites');
   p.licenses[permit.id] = { held: true };
   assert.equal(canUseVessel(p, 'small-motorboat'), true);
   assert.equal(canUseVessel(p, 'workboat'), false, 'next tier not held');
@@ -239,7 +240,7 @@ test('profile v2 round-trips licenses through save and load', () => {
   applyExamOutcome(p, permit, fakeResult(90), { passed: true }, 555);
   saveProfile(st, p);
   const q = loadProfile(st);
-  assert.equal(q.version, 2);
+  assert.equal(q.version, 3);
   assert.equal(isHeld(q, permit.id), true);
   assert.equal(q.licenses[permit.id].heldAt, 555);
   assert.equal(q.licenses[permit.id].practical.attempts, 1);
@@ -250,7 +251,7 @@ test('profile v2 round-trips licenses through save and load', () => {
 test('migration: a Stage 2 save is kept, and players who ran contracts keep access', () => {
   const v1 = { version: 1, credits: 400, reputation: 7, xp: 120, completed: { 'supply-run': { plays: 2, bestScore: 90, bestGrade: 'S', bestTime: 100 } } };
   const p = loadProfile(store(JSON.stringify(v1)));
-  assert.equal(p.version, 2);
+  assert.equal(p.version, 3);
   assert.equal(p.credits, 400);
   assert.equal(isHeld(p, 'small-craft-permit'), true);
   assert.equal(p.licenses['small-craft-permit'].grandfathered, true);

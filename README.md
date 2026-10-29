@@ -1,6 +1,6 @@
 # Bluewater Captain
 
-A 3D maritime career game that runs in your browser. **Stage 3 prototype**: train, pass the written test and practical exam to earn the Small Craft Permit, then take paid contracts between two ports, dock at the pier and get scored. All art is temporary placeholder geometry.
+A 3D maritime career game that runs in your browser. **Stage 4 prototype**: train, earn the Small Craft Permit and then the Coastal Skipper, and take paid contracts between two ports in a skiff, a workboat or a passenger craft. Each vessel drives differently, and a steady wind pushes them around. All art is temporary placeholder geometry.
 
 ## Run it
 Requires [Node.js](https://nodejs.org) 18+.
@@ -31,7 +31,8 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 
 ## Test
 ```
-npm test                                   # 66 unit tests (vessel, collision, missions, docking, scoring, licenses, quiz, profile)
+npm test                                   # 101 unit tests (vessels and handling, wind, collision, missions, docking, scoring, licenses, quiz, profile)
+node tests/e2e/vessels.cjs                 # optional headless fleet / vessel-choice test
 node tests/e2e/license.cjs                 # optional headless end-to-end license path (needs Playwright + npm run build)
 node tests/e2e/mission.cjs                 # optional headless end-to-end mission loop
 node tests/e2e/touch.cjs                   # optional phone-emulation touch test

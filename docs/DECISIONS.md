@@ -47,3 +47,13 @@ Record each decision with date, context, options, decision, and consequences.
 - Profile v2 adds `licenses`. Migration from v1 grants the Small Craft Permit (flagged `grandfathered`) to anyone who already completed a contract run so they are not locked out of progress they had.
 - Cheating note: the profile lives in the browser, so it can be edited. Single-player and offline by design; no server validation.
 - Test infrastructure: end-to-end tests now serve the build over local HTTP, because `file://` pages showed inconsistent localStorage across reloads in headless Chromium.
+
+## D-008 — Stage 4 vessel model (ACCEPTED as part of Stage 4 build, 2026-10-29)
+- Vessels are data (`src/data/vessels.js`): every number changes handling. Physics gained separate astern thrust, low-speed resistance per vessel, turn authority per vessel, and wind leeway. A steady wind (8 kn from the north-west) is applied as drift (`windage x wind speed`), not as a force, so a stopped boat drifts slowly and predictably instead of accelerating away. Stage 5 will replace the wind source.
+- Collision hull is three circles sized from vessel length and radius; damage is scaled by `hullStrength`.
+- Mission deadlines are written for the skiff and scaled by `deadlineFactor` per vessel (workboat 1.3, passenger craft 1.1), so a slower boat is not punished for being slower. Scoring is unchanged.
+- The Coastal Skipper became earnable in Stage 4 (training trials, written test, workboat exam, fee 250) because the vessel gates need a way to be unlocked. Trials and the exam may use a class you do not hold yet (sailing under instruction) once the license prerequisites are met, never for contracts.
+- Each contract lists accepted vessel classes; two new contracts need one specific class.
+- The south berth at the harbor pier was removed: starting from it put the boat on a collision course with the pier. All harbor departures and arrivals use the north berth.
+- Profile moves to v3 (adds the active vessel; v1 and v2 saves migrate).
+- Scripted-captain tests now follow the line between marks (not aim straight at each mark), which made the courses measurable per vessel.

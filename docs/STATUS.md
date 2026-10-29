@@ -1,36 +1,35 @@
 # Project Status
 
 ## Current stage
-Stage 3 — License and career progression. **Implemented; awaiting your hands-on testing and approval (stage gate).** Stages 1 and 2 remain open for tuning feedback.
+Stage 4 — Vessel variety and handling. **Implemented; awaiting your hands-on testing and approval (stage gate).** Stages 1 to 3 remain open for tuning feedback.
 
-## What was built (Stage 3)
-- **Licenses screen** (from the mission board): Small Craft Permit (Tier 1, fully playable) and Coastal Skipper (Tier 2, in data and locked behind the permit + reputation 10; exam not yet playable). Each shows its requirements with check marks, what it permits and unlocks.
-- **Training:** Coastal Training Loop and the new Harbor Docking Drill (score 50+ each).
-- **Written test:** 5 random questions from a pool of 10, shuffled answers, pass 4 of 5, free retakes, a review of what you missed.
-- **Practical exam:** fee 100 credits, a harbor circuit with two marks and a docking finish. Pass mark 70, at most 2 damaging collisions. Aborting or failing keeps the fee and counts as an attempt.
-- **Gating:** contracts (Supply Run, Produce Return) now need the permit; training is open. Locked missions explain why and link to the Licenses screen. Vessel permissions are checked per class for Stage 4.
-- **Feedback:** results show coaching tips for the weakest categories; exam results list each pass check and what unlocked.
-- **Profile v2:** licenses, written and exam history saved; Stage 2 saves migrate automatically.
-- Housekeeping: arrow/space keys are no longer captured while a menu is open (needed for the quiz); gate buoys for single-waypoint missions are placed correctly.
+## What was built (Stage 4)
+- **Three vessels** with real differences: Harbor Skiff (6.5 m, quick, tight turns, wind-sensitive), Harbor Workboat (11 m, heavy, tough, slow to turn and stop, shrugs off wind), Coastal Cat (15 m passenger craft, long stopping distance, widest turns, most windage).
+- **Fleet screen** (board > Fleet): dimensions, six stat bars measured from the boat model, license requirement, and a button to choose your active vessel (saved).
+- **Vessel gates:** workboat and Coastal Cat need the Coastal Skipper. Locked jobs say what is missing.
+- **Coastal Skipper is earnable now:** Workboat Sea Trials and Passenger Craft Sea Trials (open once you hold the permit and reputation 10), written test (8-question pool), and a workboat exam to Pine Isle (fee 250).
+- **Vessel choice matters:** Heavy Gear Haul needs the workboat, Pine Isle Passenger Shuttle needs the Coastal Cat; the two supply contracts accept any vessel you hold, picked on the briefing. Deadlines scale with the vessel.
+- **Handling improvements:** per-vessel astern thrust and coasting, turn authority, a three-circle hull and damage by hull strength, and a steady 8-knot north-westerly wind with per-vessel drift. The HUD shows wind speed and which way it pushes your bow.
+- **Visuals:** a distinct placeholder model for each vessel built from its real size; camera distance follows the vessel.
+- Profile v3 stores the active vessel; Stage 2 and 3 saves migrate.
 
 ## Verified (cloud container, headless Chromium with software rendering)
-- `npm test`: 66/66 pass. New: license requirements and ordering, training thresholds, fee/attempt accounting, pass and fail outcomes (the stage gate), no double bonus, vessel permissions, quiz draw/shuffle/scoring, coaching tips, profile save/load, v1 -> v2 migration, hostile data; a scripted captain completes all five missions (including the exam) and meets the exam pass mark.
-- `tests/e2e/license.cjs`: fresh profile -> locked contracts -> written test fail then pass -> training -> exam abort (fee lost, no license) -> exam pass (license, bonus, contracts unlock) -> reload keeps the license -> contract starts.
-- `tests/e2e/mission.cjs` (Stage 2 loop, starting with the permit) and `tests/e2e/touch.cjs` (phone controls) pass.
-- Screenshots of the licenses, quiz and exam-result screens reviewed by eye.
+- `npm test`: 101/101 pass. New: vessel definitions valid; each reaches its top speed; stopping distance, coasting, turning circle and acceleration ordered with minimum ratios; wind direction/drift/windage ordering; hull circles scale and a bigger hull hits a wall a smaller one clears; damage per hit by hull strength; deadline scaling; fleet selection gates; contract vessel rules and `chooseVessel`; Coastal Skipper path end to end; profile v3 round trip and v2 migration; fleet stat rows match independent measurement. A scripted captain completes **every mission with every vessel it allows**, wind on, with a clean hull (one run each).
+- Browser end-to-end tests (headless Chromium over local HTTP): `vessels.cjs` (fleet, gates, vessel choice on the briefing, deadline scaling, wind HUD, driving the workboat and Coastal Cat, persistence), `license.cjs`, `mission.cjs` and `touch.cjs` each passed after the final changes. The vessel test passed twice, once with a HUD timing race fixed in the test itself; they are slow and not part of `npm test`.
+- Screenshots reviewed by eye.
 
 ## NOT verified
-- Frame rate on any real GPU; how the exam *feels*: the 70-point pass mark, 2-collision limit, 180 s deadline and 100-credit fee are my estimates (a scripted captain passes, a human may find it easier or harder).
-- Real phone behaviour of the new screens (quiz on a small screen was not screenshotted), Firefox/Safari, gamepad.
-- Failing the exam through real collisions in the browser (unit tests cover the logic; the browser test fails it by aborting).
-- The Stage 3 manual checklist has not been run by a human.
-- End-to-end tests are slow (minutes) under software rendering and are not part of `npm test`. Earlier runs were flaky because of `file://` storage and fixed waits; I fixed both causes (local HTTP server, wait for the game to register each waypoint) and each suite passed once afterwards, so flakiness is not ruled out.
+- Frame rate on any real GPU; how each vessel *feels* by hand. The handling numbers, deadline factors, wind strength and fees are my estimates. A scripted captain proves the missions are possible, not that they are fun.
+- Real phone behaviour of the fleet screen and the bigger vessels' camera; Firefox/Safari; gamepad.
+- Failing missions through real hull damage with each vessel in the browser (unit tests cover damage by strength).
+- The Stage 4 manual checklist has not been run by a human.
 
 ## Next action (needs the user)
-Play the path: take a training run, the written test, the exam, then a contract. Report whether the exam is too hard or easy, whether the fee/credits balance feels fair, and anything confusing. Then approve Stage 4 (more vessel classes) or request tuning.
+Drive each vessel, ideally on your phone: skiff, then earn the Coastal Skipper (or tell me to give you a test profile) and try the workboat and Coastal Cat. Tell me whether the vessels feel different enough, whether the wind is too strong or too weak, and what is hard. Then approve Stage 5 (water, waves, weather) or request tuning.
 
 ## Stage completion log
 - Stage 0: Done 2026-10-26 (engine changed to browser per D-005).
 - Stage 1: Implemented 2026-10-26; touch controls added after user test; gate not formally passed.
 - Stage 2: Implemented 2026-10-29; gate not formally passed.
-- Stage 3: Implemented 2026-10-29; gate not yet passed.
+- Stage 3: Implemented 2026-10-29; gate not formally passed.
+- Stage 4: Implemented 2026-10-29; gate not yet passed.

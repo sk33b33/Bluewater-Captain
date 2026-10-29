@@ -60,6 +60,13 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** passing/failing an exam correctly changes progression and permitted vessel access.
 
 ## Stage 4 — Vessel variety and handling
+**Status: implemented 2026-10-29, awaiting user testing and approval.** Acceptance criteria used:
+1. Three vessel classes with different dimensions and measurably different handling: Harbor Skiff (small motorboat), Harbor Workboat, Coastal Cat (coastal passenger craft). Pick-up, top speed, stopping distance, turning circle, coasting, wind drift and hull toughness all differ and are unit-tested with ordering and minimum ratios.
+2. Fleet screen with inspection (dimensions, six measured stat bars, license requirement) and selection of the active vessel, saved in the profile.
+3. License gates: the workboat and passenger craft need the Coastal Skipper; contracts name the vessels they accept; locked jobs explain what is missing. The Coastal Skipper is now earnable end to end (training trials under instruction, written test, exam in the workboat).
+4. Improvements: three-circle hulls sized per vessel, per-vessel damage (tougher hulls), separate astern thrust and low-speed resistance (stopping and coasting), per-vessel turn authority, and a steady wind with per-vessel leeway shown on the HUD.
+5. Vessel choice changes play: vessel-specific contracts (Heavy Gear Haul, Passenger Shuttle), deadlines scaled by vessel speed, and a briefing that lets you pick among the vessels a job allows.
+**Exclusions kept out:** changing weather and waves (Stage 5), tugs/ferries/cargo ships (Stage 7), fuel, vessel purchase or rental economy, passenger comfort scoring.
 - Add at least three vessel classes with meaningful differences in handling and dimensions.
 - Ship selection/inspection and license gates.
 - Improve collision, stopping distance, turning, and wind response.

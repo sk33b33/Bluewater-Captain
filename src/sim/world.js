@@ -37,15 +37,13 @@ export function staticObstacles() {
   return [...LAND, ...BREAKWATERS, ...DOCKS, ...ISLANDS];
 }
 
-// Two circles (bow, stern) approximate the hull. Returns array of {x, z, r}.
+// Three circles (bow, middle, stern) approximate the hull, sized from the vessel's length and radius.
+// Returns array of {x, z, r}.
 export function hullCircles(s, p) {
   const sin = Math.sin(s.heading);
   const cos = Math.cos(s.heading);
-  const off = p.length * 0.3;
-  return [
-    { x: s.x + sin * off, z: s.z - cos * off, r: p.hullRadius },
-    { x: s.x - sin * off, z: s.z + cos * off, r: p.hullRadius },
-  ];
+  const reach = Math.max(0, p.length / 2 - p.hullRadius);
+  return [reach, 0, -reach].map((off) => ({ x: s.x + sin * off, z: s.z - cos * off, r: p.hullRadius }));
 }
 
 // Push circle out of obstacle. Returns { nx, nz, depth } or null.

@@ -38,21 +38,52 @@ export function buildStatic() {
   return g;
 }
 
-export function buildBoat() {
-  const g = new THREE.Group();
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 6.5), mat(0xe8eef2));
-  hull.position.y = 0.45;
-  const bow = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.2, 4), mat(0xe8eef2));
+// Boats are placeholder primitives sized from the vessel's real length and beam. Bow points to -z.
+function addBox(g, w, h, l, color, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), mat(color));
+  m.position.set(x, y, z);
+  g.add(m);
+  return m;
+}
+
+function hullWithBow(g, v, hullH) {
+  const L = v.length;
+  const W = v.beam;
+  const bowLen = L * 0.22;
+  addBox(g, W, hullH, L - bowLen, v.look.hull, 0, hullH / 2, bowLen / 2);
+  const bow = new THREE.Mesh(new THREE.ConeGeometry(W / 2 * 1.41, bowLen, 4), mat(v.look.hull));
   bow.rotation.set(-Math.PI / 2, Math.PI / 4, 0);
-  bow.scale.set(1, 1, 0.38 / 0.5);
-  bow.position.set(0, 0.45, -4.3);
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.18, 6.55), mat(0xc0392b));
-  stripe.position.y = 0.25;
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.9, 2.0), mat(0x2d3e50));
-  cabin.position.set(0, 1.3, 0.3);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 2.2), mat(0xe8eef2));
-  roof.position.set(0, 1.8, 0.3);
-  g.add(hull, bow, stripe, cabin, roof);
+  bow.scale.set(1, 1, 0.76);
+  bow.position.set(0, hullH / 2, -L / 2 + bowLen / 2 - 0.05);
+  g.add(bow);
+  addBox(g, W + 0.05, hullH * 0.2, L - bowLen + 0.05, v.look.stripe, 0, hullH * 0.3, bowLen / 2);
+}
+
+export function buildBoat(v) {
+  const g = new THREE.Group();
+  if (v.class === 'workboat') {
+    hullWithBow(g, v, 1.5);
+    addBox(g, v.beam * 0.62, 2.0, 2.8, v.look.cabin, 0, 2.5, -v.length * 0.12); // wheelhouse forward
+    addBox(g, v.beam * 0.7, 0.14, 3.1, v.look.roof, 0, 3.55, -v.length * 0.12);
+    addBox(g, v.beam * 0.9, 0.5, v.length * 0.28, 0x555555, 0, 1.75, v.length * 0.3); // work deck gear
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 4.2, 8), mat(v.look.roof));
+    mast.position.set(v.beam * 0.3, 3.6, v.length * 0.2);
+    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.5, 8), mat(v.look.roof));
+    boom.rotation.z = Math.PI / 2.8;
+    boom.position.set(v.beam * 0.3 + 1.2, 5.3, v.length * 0.2);
+    g.add(mast, boom);
+  } else if (v.class === 'coastal-passenger') {
+    hullWithBow(g, v, 1.3);
+    addBox(g, v.beam * 0.86, 1.7, v.length * 0.6, v.look.cabin, 0, 2.15, v.length * 0.05); // long cabin
+    addBox(g, v.beam * 0.9, 0.5, v.length * 0.62, 0x274b66, 0, 2.5, v.length * 0.05); // window band
+    addBox(g, v.beam * 0.9, 0.14, v.length * 0.64, v.look.roof, 0, 3.1, v.length * 0.05);
+    addBox(g, v.beam * 0.5, 1.0, v.length * 0.2, v.look.cabin, 0, 3.7, -v.length * 0.05); // upper wheelhouse
+    addBox(g, v.beam * 0.56, 0.12, v.length * 0.22, v.look.roof, 0, 4.25, -v.length * 0.05);
+  } else {
+    hullWithBow(g, v, 0.9);
+    addBox(g, v.beam * 0.7, 0.9, 2.0, v.look.cabin, 0, 1.3, 0.3);
+    addBox(g, v.beam * 0.8, 0.12, 2.2, v.look.roof, 0, 1.8, 0.3);
+  }
   const outer = new THREE.Group();
   outer.add(g);
   return outer;
@@ -144,17 +175,17 @@ export function updateBuoys(buoys, t, activeIndex) {
   });
 }
 
-// Place boat on the water: height at centre, pitch/roll from four sample points.
-export function poseBoat(boat, s, t) {
+// Place boat on the water: height at centre, pitch/roll from four sample points sized to the vessel.
+export function poseBoat(boat, s, t, v) {
   const sin = Math.sin(s.heading), cos = Math.cos(s.heading);
   const fx = sin, fz = -cos, rx = cos, rz = sin;
-  const L = 3, W = 1.1;
+  const L = v.length * 0.46, W = v.beam * 0.46;
   const hF = getWaterHeight(s.x + fx * L, s.z + fz * L, t);
   const hB = getWaterHeight(s.x - fx * L, s.z - fz * L, t);
   const hR = getWaterHeight(s.x + rx * W, s.z + rz * W, t);
   const hL = getWaterHeight(s.x - rx * W, s.z - rz * W, t);
   const pitch = Math.atan2(hF - hB, 2 * L);
-  const roll = Math.atan2(hR - hL, 2 * W) + s.rudder * s.u * 0.012; // lean into turns
+  const roll = Math.atan2(hR - hL, 2 * W) + (s.rudder * s.u * 0.012) / (1 + v.massTonnes * 0.08); // heavier boats lean less
   boat.position.set(s.x, (hF + hB + hR + hL) / 4 - 0.1, s.z);
   boat.rotation.set(0, 0, 0);
   boat.rotation.order = 'YXZ';

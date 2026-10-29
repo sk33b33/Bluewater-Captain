@@ -10,9 +10,12 @@ export const MIN_DAMAGE_IMPACT = 1; // m/s, gentler contact does no damage
 const angleDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-export function createRun(mission) {
+// `vessel` sets the vessel id and scales the deadline (the mission's deadline is written for the skiff).
+export function createRun(mission, vessel = null) {
   return {
     mission,
+    vesselId: vessel ? vessel.id : null,
+    deadline: Math.round(mission.deadline * (vessel ? vessel.deadlineFactor : 1)),
     phase: 'underway',
     time: 0,
     departed: false,
@@ -55,12 +58,13 @@ function fail(run, reason) {
   return { type: 'failed', reason };
 }
 
-// Call after resolving a collision. Returns an event or null.
-export function applyImpact(run, impact) {
+// Call after resolving a collision. `strength` is the vessel's hullStrength (lower = tougher hull).
+// Returns an event or null.
+export function applyImpact(run, impact, strength = 1) {
   if (run.phase !== 'underway' && run.phase !== 'docking') return null;
   if (impact < MIN_DAMAGE_IMPACT) return null;
   run.collisions += 1;
-  run.integrity = Math.max(0, run.integrity - impact * DAMAGE_PER_MPS);
+  run.integrity = Math.max(0, run.integrity - impact * DAMAGE_PER_MPS * strength);
   if (run.integrity <= 0) return fail(run, 'hull');
   return { type: 'damage', integrity: run.integrity };
 }
@@ -109,7 +113,7 @@ export function stepRun(run, vessel, dt, berths) {
     }
   }
 
-  if (run.time > m.deadline * TIME_LIMIT_FACTOR) events.push(fail(run, 'timeout'));
+  if (run.time > run.deadline * TIME_LIMIT_FACTOR) events.push(fail(run, 'timeout'));
   return events;
 }
 
@@ -156,7 +160,7 @@ export function scoreRun(run) {
     note: run.respawns === 0 ? 'All marks passed, no respawns' : `${run.respawns} respawn${run.respawns === 1 ? '' : 's'} (-${perRespawn} each)`,
   });
 
-  const late = Math.max(0, run.time - m.deadline);
+  const late = Math.max(0, run.time - run.deadline);
   const timing = Math.max(0, max.timing - Math.ceil(late / 5));
   cats.push({
     name: 'Timing',

@@ -1,14 +1,16 @@
 import * as THREE from 'three';
-import { SMALL_MOTORBOAT as P, createVesselState, stepVessel, speedKnots, headingDegrees } from './sim/vessel.js';
+import { createVesselState, stepVessel, speedKnots, headingDegrees } from './sim/vessel.js';
+import { WIND, windVector, windKnots, windArrow } from './sim/wind.js';
+import { getVessel, DEFAULT_VESSEL } from './data/vessels.js';
 import { BUOY_RADIUS, staticObstacles, resolveCollisions, edgeStatus } from './sim/world.js';
 import { MISSIONS, BERTHS, getMission } from './data/missions.js';
 import { LICENSES, getLicense } from './data/licenses.js';
-import { SMALL_CRAFT_QUESTIONS } from './data/quiz.js';
+import { SMALL_CRAFT_QUESTIONS, COASTAL_SKIPPER_QUESTIONS } from './data/quiz.js';
 import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, DOCK } from './sim/mission.js';
 import { loadProfile, saveProfile, recordResult, clearProfile, safeStorage } from './sim/profile.js';
 import { formatTime } from './sim/route.js';
 import { pickQuestions, scoreQuiz } from './sim/quiz.js';
-import { evaluateLicense, missionAccess, isHeld, examFor, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips } from './sim/licenses.js';
+import { evaluateLicense, missionAccess, isHeld, examFor, chooseVessel, usableVessels, fleetStatus, selectVessel, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips } from './sim/licenses.js';
 import { createSky } from './render/sky.js';
 import { createWater } from './render/water.js';
 import { buildStatic, buildBoat, buildBuoys, buildBerth, disposeObject, updateBuoys, poseBoat, addLights } from './render/scene.js';
@@ -34,8 +36,19 @@ addLights(scene, sky.sunDir);
 const water = createWater(sky);
 scene.add(water);
 scene.add(buildStatic());
-const boat = buildBoat();
+let vp = getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL); // vessel being driven / shown
+let boat = buildBoat(vp);
 scene.add(boat);
+const windV = windVector(WIND);
+
+function setVessel(v) {
+  if (v.id === vp.id && boat) return;
+  scene.remove(boat);
+  disposeObject(boat);
+  vp = v;
+  boat = buildBoat(vp);
+  scene.add(boat);
+}
 
 function applyQuality() {
   const ratio = settings.lowGraphics ? 0.75 : Math.min(window.devicePixelRatio || 1, 2);
@@ -55,7 +68,7 @@ const baseObstacles = staticObstacles();
 
 const vessel = createVesselState(MISSIONS[0].start.x, MISSIONS[0].start.z, MISSIONS[0].start.heading);
 let mode = 'menu'; // menu | board | briefing | licenses | quiz | play | paused | settings | result
-const QUIZ_POOLS = { 'small-craft-permit': SMALL_CRAFT_QUESTIONS };
+const QUIZ_POOLS = { 'small-craft-permit': SMALL_CRAFT_QUESTIONS, 'coastal-skipper': COASTAL_SKIPPER_QUESTIONS };
 let quizLic = null;
 let quizQuestions = [];
 let mission = null;
@@ -93,10 +106,11 @@ function clearMission() {
   run = null;
 }
 
-function startMission(m) {
+function startMission(m, vessel) {
   clearMission();
   mission = m;
-  run = createRun(m);
+  setVessel(vessel);
+  run = createRun(m, vessel);
   buoys = buildBuoys(m.waypoints, m.start);
   scene.add(buoys.group);
   obstacles = [...baseObstacles];
@@ -119,28 +133,43 @@ function heldNames() {
 }
 function showBoard() {
   mode = 'board';
-  menus.showBoard(profile, boardEntries(), heldNames());
+  menus.showBoard(profile, boardEntries(), heldNames(), (getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL)).name);
 }
 
 function enterBoard() {
   clearMission();
   mission = null;
+  setVessel(getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL));
   placeVessel(MISSIONS[0].start);
   setPlaying(false);
   showBoard();
 }
 
-function showBriefing(m) {
+let briefingVessel = null;
+function showBriefing(m, keepVessel = false) {
   selected = m;
   mode = 'briefing';
   const ex = examFor(m);
   const lic = getLicense(m.license);
+  const vessels = usableVessels(profile, m);
+  if (!keepVessel || !briefingVessel || !vessels.some((v) => v.id === briefingVessel.id)) briefingVessel = chooseVessel(profile, m);
   menus.showBriefing(m, {
     dockName: m.dock ? BERTHS[m.dock].name : null,
     access: missionAccess(profile, m),
     exam: ex ? ex.exam : null,
     licenseName: lic ? lic.name : '',
+    vessels,
+    vessel: briefingVessel,
+    deadline: Math.round(m.deadline * (briefingVessel ? briefingVessel.deadlineFactor : 1)),
   });
+}
+
+function showFleet() {
+  clearMission();
+  setPlaying(false);
+  setVessel(getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL));
+  mode = 'fleet';
+  menus.showFleet(profile, fleetStatus(profile));
 }
 
 function showLicenses() {
@@ -175,7 +204,7 @@ function depart() {
     if (!paid.ok) { showBriefing(selected); return; }
     saveProfile(storage, profile);
   }
-  startMission(selected);
+  startMission(selected, briefingVessel);
 }
 
 function respawn(reason, manual = false) {
@@ -202,7 +231,7 @@ function finish() {
   }
   mode = 'result';
   setPlaying(false);
-  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam });
+  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam, vesselName: vp.name });
 }
 
 function failMission(reason) {
@@ -234,7 +263,19 @@ const menus = createMenus({
   onSelect: (id) => showBriefing(getMission(id)),
   onDepart: () => depart(),
   onBoard: () => enterBoard(),
-  onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission); },
+  onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission, vp); },
+  onFleet: () => showFleet(),
+  onPickVessel: (id) => {
+    const v = getVessel(id);
+    if (!v || !usableVessels(profile, selected).some((u) => u.id === id)) return;
+    briefingVessel = v;
+    if (selectVessel(profile, id)) saveProfile(storage, profile);
+    showBriefing(selected, true);
+  },
+  onUseVessel: (id) => {
+    if (selectVessel(profile, id)) { saveProfile(storage, profile); setVessel(getVessel(id)); }
+    showFleet();
+  },
   onLicenses: () => showLicenses(),
   onWritten: (id) => beginWritten(id),
   onQuizRetake: () => { if (quizLic) beginWritten(quizLic.id); },
@@ -242,7 +283,7 @@ const menus = createMenus({
   onExam: (id) => { const lic = getLicense(id); if (lic && lic.exam) showBriefing(getMission(lic.exam.mission)); },
   onMenu: () => openPause(),
   onResume: () => closePause(),
-  onRestart: () => { if (mission && mission.kind !== 'exam') startMission(mission); },
+  onRestart: () => { if (mission && mission.kind !== 'exam') startMission(mission, vp); },
   onAbort: () => { const e = run && abortRun(run); closePauseUi(); if (e) failMission(e.reason); else enterBoard(); },
   onSettings: () => { settingsReturn = mode; mode = 'settings'; menus.showPause(false); },
   onReset: () => { profile = clearProfile(storage); enterBoard(); },
@@ -303,11 +344,11 @@ function tick(dt) {
   time += dt;
   if (mode !== 'play' || !run) return;
   const inp = input.read();
-  stepVessel(vessel, inp, P, dt);
-  const col = resolveCollisions(vessel, P, obstacles);
+  stepVessel(vessel, inp, vp, dt, windV);
+  const col = resolveCollisions(vessel, vp, obstacles);
   const events = [];
   if (col.hit) {
-    const dmg = applyImpact(run, col.impact);
+    const dmg = applyImpact(run, col.impact, vp.hullStrength);
     if (dmg) events.push(dmg);
     stuckTime += dt;
     if (stuckTime > 4 && !dmg) respawn('Grounded: returned to last safe point');
@@ -334,6 +375,7 @@ function frame(now) {
     else if (mode === 'paused' || mode === 'settings') closePause();
     else if (mode === 'briefing') enterBoard();
     else if (mode === 'licenses') enterBoard();
+    else if (mode === 'fleet') enterBoard();
     else if (mode === 'quiz') showLicenses();
   }
   if (input.wasPressed('Enter') || input.wasPressed('Space')) {
@@ -344,7 +386,7 @@ function frame(now) {
 
   // visuals
   water.userData.update(time);
-  poseBoat(boat, vessel, time);
+  poseBoat(boat, vessel, time, vp);
   if (buoys) updateBuoys(buoys, time, run && run.phase === 'underway' ? run.route.next : -1);
   updateCamera(dt);
   if (run) updateHud();
@@ -359,11 +401,11 @@ function updateCamera(dt) {
   camHeading += angleDiff(vessel.heading, camHeading) * Math.min(1, dt * lag);
   if (!dragging && performance.now() - idleSince > 2000) camOffset *= Math.max(0, 1 - dt * 1.5);
   const yaw = camHeading + camOffset;
-  const dist = 16;
+  const dist = vp.cameraDistance;
   const bx = vessel.x, bz = vessel.z;
   const hy = boat.position.y;
-  camera.position.set(bx - Math.sin(yaw) * dist * Math.cos(camPitch), hy + 2 + dist * Math.sin(camPitch) + 2.5, bz + Math.cos(yaw) * dist * Math.cos(camPitch));
-  camera.lookAt(bx, hy + 1.5, bz);
+  camera.position.set(bx - Math.sin(yaw) * dist * Math.cos(camPitch), hy + 2 + dist * Math.sin(camPitch) + 2.5 + vp.length * 0.15, bz + Math.cos(yaw) * dist * Math.cos(camPitch));
+  camera.lookAt(bx, hy + 1.5 + vp.length * 0.08, bz);
   const targetFov = settings.reducedMotion ? 60 : 60 + Math.min(10, Math.abs(vessel.u) * 0.7);
   camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 2);
   camera.updateProjectionMatrix();
@@ -401,8 +443,9 @@ function updateHud() {
     throttle: vessel.throttle,
     objective,
     timer: run.departed ? formatTime(run.time) : '--:--',
-    limit: `deadline ${formatTime(m.deadline)}`,
-    late: run.time > m.deadline,
+    limit: `deadline ${formatTime(run.deadline)}`,
+    wind: `wind ${windKnots(WIND).toFixed(0)} kn ${windArrow(vessel.heading, WIND)}`,
+    late: run.time > run.deadline,
     hull: run.integrity,
     bearingRel: (angleDiff(bearing, vessel.heading) * 180) / Math.PI,
     dock,
@@ -417,6 +460,7 @@ window.__bwc = {
   get profile() { return profile; },
   BERTHS,
   LICENSES,
+  get vesselId() { return vp.id; },
   get quiz() { return quizQuestions; }, // debug: lets the headless test read the correct answers
 };
 

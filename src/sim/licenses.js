@@ -1,6 +1,7 @@
 // License rules: requirements, mission/vessel access, exam fee and judging. Pure logic.
-import { LICENSES, getLicense, TRAINING_VESSELS } from '../data/licenses.js';
+import { LICENSES, getLicense, TRAINING_VESSELS, VESSEL_CLASSES } from '../data/licenses.js';
 import { getMission } from '../data/missions.js';
+import { VESSELS, getVessel, DEFAULT_VESSEL } from '../data/vessels.js';
 
 export function emptyLicenseState() {
   return { held: false, heldAt: null, grandfathered: false, written: { attempts: 0, bestScore: 0, passed: false }, practical: { attempts: 0, bestScore: 0, passed: false } };
@@ -63,24 +64,93 @@ export function permittedClasses(profile) {
   return set;
 }
 
-// Vessel gate used by missions now and by vessel selection in a later stage.
-export function canUseVessel(profile, vesselClass, { training = false } = {}) {
-  if (training && TRAINING_VESSELS.includes(vesselClass)) return true;
+// Vessel class permitted outright by a license you hold.
+export function canUseVessel(profile, vesselClass) {
   return permittedClasses(profile).has(vesselClass);
+}
+
+// Training and exams may use a class you do not hold yet ("sailing under instruction"):
+// the skiff in any training, and any class of a license whose prerequisites you meet, but only in
+// that license's own training missions and exam.
+export function classUsableForMission(profile, mission, cls) {
+  if (!mission.vesselClasses.includes(cls)) return false;
+  if (canUseVessel(profile, cls)) return true;
+  if (mission.kind === 'training' && TRAINING_VESSELS.includes(cls)) return true;
+  if (mission.kind === 'contract') return false;
+  for (const lic of LICENSES) {
+    const mine = lic.training.some((t) => t.mission === mission.id) || (lic.exam && lic.exam.mission === mission.id);
+    if (mine && lic.permits.includes(cls) && evaluateLicense(profile, lic).unlocked) return true;
+  }
+  return false;
+}
+
+export function usableClasses(profile, mission) {
+  return mission.vesselClasses.filter((c) => classUsableForMission(profile, mission, c));
+}
+
+// Vessels the player could take on this mission, in fleet order.
+export function usableVessels(profile, mission) {
+  const classes = usableClasses(profile, mission);
+  return VESSELS.filter((v) => classes.includes(v.class));
+}
+
+// The active vessel if it works for this mission, otherwise the first one that does.
+export function chooseVessel(profile, mission) {
+  const usable = usableVessels(profile, mission);
+  if (!usable.length) return null;
+  return usable.find((v) => v.id === profile.vessel) || usable[0];
+}
+
+// Fleet screen rows: can this vessel be used for contracts, and which license unlocks it?
+export function fleetStatus(profile) {
+  return VESSELS.map((v) => {
+    const lic = LICENSES.find((l) => l.permits.includes(v.class));
+    const permitted = canUseVessel(profile, v.class);
+    return {
+      vessel: v,
+      permitted,
+      selectable: permitted || v.id === DEFAULT_VESSEL,
+      license: lic || null,
+      active: profile.vessel === v.id,
+      reason: permitted ? '' : lic ? `Requires the ${lic.name}` : 'Not available',
+    };
+  });
+}
+
+export function selectVessel(profile, id) {
+  const v = getVessel(id);
+  if (!v) return false;
+  const row = fleetStatus(profile).find((r) => r.vessel.id === id);
+  if (!row.selectable) return false;
+  profile.vessel = id;
+  return true;
 }
 
 // Can the player start this mission right now? { ok, reason }
 export function missionAccess(profile, mission) {
-  if (mission.kind === 'training') return { ok: true, reason: '' };
   const lic = getLicense(mission.license);
+  const usable = usableClasses(profile, mission);
+  const classNames = mission.vesselClasses.map((c) => VESSEL_CLASSES[c]).join(' or ');
+  const needsVessel = () => {
+    const owners = [...new Set(mission.vesselClasses.map((c) => LICENSES.find((l) => l.permits.includes(c))).filter(Boolean).map((l) => l.name))];
+    return `Needs a ${classNames}${owners.length ? `: earn the ${owners.join(' or ')}` : ''}.`;
+  };
+  if (mission.kind === 'training') {
+    if (usable.length) return { ok: true, reason: '' };
+    const owner = LICENSES.find((l) => l.training.some((t) => t.mission === mission.id));
+    if (!owner) return { ok: false, reason: needsVessel() };
+    const unmet = evaluateLicense(profile, owner).requirements.filter((r) => r.group === 'unlock' && !r.met).map((r) => r.label);
+    return { ok: false, reason: `Opens when you qualify for the ${owner.name}: ${unmet.join('; ')}.` };
+  }
   if (mission.kind === 'contract') {
     if (!isHeld(profile, lic.id)) return { ok: false, reason: `Requires the ${lic.name}. Earn it on the Licenses screen.` };
-    if (!canUseVessel(profile, mission.vesselClass)) return { ok: false, reason: `Your licenses do not permit this vessel class.` };
+    if (!usable.length) return { ok: false, reason: needsVessel() };
     return { ok: true, reason: '' };
   }
   const ev = evaluateLicense(profile, lic);
   if (ev.status === 'held') return { ok: false, reason: `You already hold the ${lic.name}.` };
   if (!ev.canPractical) return { ok: false, reason: ev.practicalBlockers.join('. ') + '.' };
+  if (!usable.length) return { ok: false, reason: needsVessel() };
   return { ok: true, reason: '' };
 }
 

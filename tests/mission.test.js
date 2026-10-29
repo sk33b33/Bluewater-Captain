@@ -4,6 +4,8 @@ import { SMALL_MOTORBOAT as P, createVesselState, stepVessel } from '../src/sim/
 import { staticObstacles, resolveCollisions, circleVsObstacle, BUOY_RADIUS } from '../src/sim/world.js';
 import { MISSIONS, BERTHS, getMission, gateBuoys } from '../src/data/missions.js';
 import { createRun, stepRun, applyImpact, abortRun, registerRespawn, evaluateDock, respawnPose, scoreRun, gradeFor, DOCK } from '../src/sim/mission.js';
+import { autopilot } from './helpers/autopilot.js';
+import { getVessel, vesselForClass } from '../src/data/vessels.js';
 import { defaultProfile, loadProfile, saveProfile, recordResult, sanitizeProfile, clearProfile } from '../src/sim/profile.js';
 
 const DT = 1 / 60;
@@ -42,7 +44,7 @@ test('gate buoys never sit inside land, piers or islands, and leave a gap to sai
 
 test('missions have the fields the board needs', () => {
   for (const m of MISSIONS) {
-    for (const k of ['id', 'title', 'summary', 'from', 'to', 'cargo', 'deadline', 'reward', 'risk', 'kind', 'vesselClass', 'weather', 'start', 'waypoints']) assert.ok(m[k] !== undefined, `${m.id}.${k}`);
+    for (const k of ['id', 'title', 'summary', 'from', 'to', 'cargo', 'deadline', 'reward', 'risk', 'kind', 'vesselClasses', 'weather', 'start', 'waypoints']) assert.ok(m[k] !== undefined, `${m.id}.${k}`);
     if (m.dock) assert.ok(BERTHS[m.dock]);
   }
   assert.equal(getMission('nope'), null);
@@ -251,48 +253,24 @@ test('profile: clear resets progress', () => {
   assert.equal(loadProfile(st).credits, 0);
 });
 
-// ---- end-to-end: a scripted captain flies each mission with collisions on
-function autopilot(m) {
-  const run = createRun(m);
-  const s = createVesselState(m.start.x, m.start.z, m.start.heading);
-  const obs = staticObstacles();
-  const dockB = m.dock ? BERTHS[m.dock] : null;
-  let events = [];
-  for (let i = 0; i < 60 * 600 && run.phase !== 'complete' && run.phase !== 'failed'; i++) {
-    let tx, tz, vt;
-    if (run.phase === 'docking') {
-      tx = dockB.cx; tz = dockB.cz;
-      const dist = Math.hypot(tx - s.x, tz - s.z);
-      vt = dist > 45 ? 6 : Math.max(0.6, dist * 0.1);
-    } else {
-      const wp = m.waypoints[run.route.next];
-      tx = wp.x; tz = wp.z;
-      vt = 8;
-    }
-    const want = Math.atan2(tx - s.x, -(tz - s.z));
-    const err = Math.atan2(Math.sin(want - s.heading), Math.cos(want - s.heading));
-    const throttle = Math.max(-1, Math.min(1, (Math.abs(err) > 0.7 ? Math.min(vt, 3) - Math.hypot(s.u, s.v) : vt - Math.hypot(s.u, s.v)) * 0.6));
-    stepVessel(s, { throttle, steer: Math.max(-1, Math.min(1, err * 2.5)) }, P, DT);
-    const col = resolveCollisions(s, P, obs);
-    if (col.hit) { const e = applyImpact(run, col.impact); if (e) events.push(e); }
-    events = events.concat(stepRun(run, s, DT, BERTHS));
-  }
-  return { run, s, events };
-}
-
+// ---- end-to-end: a scripted captain flies each mission with collisions on (see tests/helpers/autopilot.js)
 for (const m of MISSIONS) {
-  test(`autopilot completes "${m.id}" within its deadline`, () => {
-    const { run, s } = autopilot(m);
-    assert.equal(run.phase, 'complete', `phase=${run.phase} at (${s.x.toFixed(0)},${s.z.toFixed(0)}) wp=${run.route.next} t=${run.time.toFixed(0)}`);
-    assert.ok(run.time <= m.deadline, `time=${run.time.toFixed(0)}s > ${m.deadline}s`);
-    const r = scoreRun(run);
-    assert.ok(r.total >= 65, `score ${r.total}: ${JSON.stringify(r.categories)}`);
-  });
+  for (const cls of m.vesselClasses) {
+    const vessel = vesselForClass(cls);
+    test(`autopilot completes "${m.id}" with the ${vessel.name} within its deadline`, () => {
+      const { run, s } = autopilot(m, vessel);
+      assert.equal(run.phase, 'complete', `phase=${run.phase} at (${s.x.toFixed(0)},${s.z.toFixed(0)}) wp=${run.route.next} t=${run.time.toFixed(0)} hull=${Math.round(run.integrity)}`);
+      assert.ok(run.time <= run.deadline, `time=${run.time.toFixed(0)}s > ${run.deadline}s`);
+      const r = scoreRun(run);
+      assert.ok(r.total >= 65, `score ${r.total}: ${JSON.stringify(r.categories)}`);
+    });
+  }
 }
 
 test('the same mission can be run repeatedly with fresh state each time', () => {
-  const a = autopilot(supply);
-  const b = autopilot(supply);
+  const skiff = getVessel('small-motorboat');
+  const a = autopilot(supply, skiff);
+  const b = autopilot(supply, skiff);
   assert.equal(a.run.phase, 'complete');
   assert.equal(b.run.phase, 'complete');
   assert.notEqual(a.run, b.run);
@@ -303,7 +281,7 @@ import { judgeExam } from '../src/sim/licenses.js';
 import { getLicense } from '../src/data/licenses.js';
 test('the practical exam is passable: the scripted captain meets the pass mark and collision limit', () => {
   const exam = getMission('small-craft-exam');
-  const { run } = autopilot(exam);
+  const { run } = autopilot(exam, getVessel('small-motorboat'));
   assert.equal(run.phase, 'complete');
   const r = scoreRun(run);
   const j = judgeExam(run, r, getLicense('small-craft-permit').exam);

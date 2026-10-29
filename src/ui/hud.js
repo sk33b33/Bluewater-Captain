@@ -3,7 +3,7 @@ const $ = (id) => document.getElementById(id);
 export function createHud() {
   const els = {
     speed: $('hud-speed'), heading: $('hud-heading'), throttle: $('hud-throttle-fill'),
-    objective: $('hud-objective'), timer: $('hud-timer'), limit: $('hud-limit'), warning: $('hud-warning'),
+    objective: $('hud-objective'), timer: $('hud-timer'), limit: $('hud-limit'), wind: $('hud-wind'), warning: $('hud-warning'),
     arrow: $('hud-arrow'), hull: $('hud-hull'), hullBox: $('hud-hull-box'),
     dock: $('hud-dock'), dockTitle: $('dock-title'), dockHint: $('dock-hint'), dockFill: $('dock-fill'),
     dkPos: $('dk-pos'), dkSpd: $('dk-spd'), dkAng: $('dk-ang'),
@@ -24,6 +24,7 @@ export function createHud() {
       els.timer.textContent = d.timer;
       els.timer.classList.toggle('late', d.late);
       els.limit.textContent = d.limit;
+      els.wind.textContent = d.wind;
       els.arrow.style.transform = `rotate(${d.bearingRel}deg)`;
       els.hull.textContent = `${Math.round(d.hull)}%`;
       els.hullBox.classList.toggle('low', d.hull < 40);

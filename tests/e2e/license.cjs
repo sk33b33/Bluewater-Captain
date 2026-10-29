@@ -54,8 +54,8 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   await page.goto(url);
   await page.waitForTimeout(600);
   await page.click('#start-btn');
-  check((await page.locator('.mcard').count()) === 5, 'board lists 5 missions');
-  check((await page.locator('.mcard.locked').count()) === 3, 'fresh profile: 2 contracts + exam are locked, 2 training open');
+  check((await page.locator('.mcard').count()) === 10, 'board lists 10 missions');
+  check((await page.locator('.mcard.locked').count()) === 8, 'fresh profile: only the 2 permit training missions are open');
   await page.screenshot({ path: path.join(out, 'l-board.png') });
 
   // locked contract: briefing explains, depart disabled
@@ -142,8 +142,8 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   check(p.licenses['small-craft-permit'].held === true, 'license awarded');
   check(p.reputation >= 5, `bonus reputation granted (${p.reputation})`);
   await page.click('#res-board');
-  check((await page.locator('.mcard.locked').count()) === 1, 'only the exam card stays locked once the permit is held (already held)');
-  check((await page.locator('.mcard.locked[data-id="supply-run"]').count()) === 0, 'contracts unlocked by the permit');
+  check((await page.locator('.mcard.locked[data-id="supply-run"]').count()) === 0, 'supply run unlocked by the permit');
+  check((await page.locator('.mcard.locked[data-id="workboat-haul"]').count()) === 1, 'workboat contract still locked: needs the Coastal Skipper');
 
   // persistence + permissions after reload
   await page.reload();
