@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SHORE_AREA } from './shore.js';
 
 const G = 9.81;
 const MAX_WAVES = 4;
@@ -42,6 +43,7 @@ const frag = /* glsl */ `
   uniform float uFoam;       // 0 = no foam (and no noise work), 1 = full
   uniform float uFoamLevel;  // crest height at which whitecaps start
   uniform sampler2D uShore;  // r = distance to land / uShoreMax
+  uniform vec2 uShoreOrigin;
   uniform float uShoreExtent;
   uniform float uShoreMax;
   varying vec3 vWorld;
@@ -61,7 +63,7 @@ const frag = /* glsl */ `
     float fres = pow(1.0 - max(dot(n, view), 0.0), 3.0);
     float crest = smoothstep(0.35, 0.8, vWorld.y);
 
-    float sd = texture2D(uShore, (vWorld.xz + uShoreExtent * 0.5) / uShoreExtent).r * uShoreMax; // metres to land
+    float sd = texture2D(uShore, (vWorld.xz - uShoreOrigin) / uShoreExtent).r * uShoreMax; // metres to land
     float shallow = 1.0 - smoothstep(0.0, 45.0, sd);
 
     vec3 base = mix(uDeep, uShallow, crest * 0.6 + 0.2);
@@ -109,7 +111,8 @@ export function createWater(sky, quality, shoreTexture) {
       uFoam: { value: quality.foam },
       uFoamLevel: { value: 0.3 },
       uShore: { value: shoreTexture },
-      uShoreExtent: { value: EXTENT },
+      uShoreOrigin: { value: new THREE.Vector2(SHORE_AREA.originX, SHORE_AREA.originZ) },
+      uShoreExtent: { value: SHORE_AREA.extent },
       uShoreMax: { value: 80 },
     },
   });
@@ -126,6 +129,9 @@ export function createWater(sky, quality, shoreTexture) {
 
   const u = mat.uniforms;
   group.userData.update = (t) => { u.uTime.value = t; };
+  // The water mesh follows the camera, snapped to its own grid so the vertices never swim.
+  const cellSize = EXTENT / quality.grid;
+  group.userData.follow = (x, z) => { mesh.position.set(Math.round(x / cellSize) * cellSize, 0, Math.round(z / cellSize) * cellSize); };
   // waves: array from sim/waves.js (up to 4); extra slots are silenced.
   group.userData.setWaves = (waves) => {
     for (let i = 0; i < MAX_WAVES; i++) {

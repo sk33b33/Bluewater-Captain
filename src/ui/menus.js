@@ -8,7 +8,7 @@ import { VESSELS } from '../data/vessels.js';
 import { statRows } from '../sim/handling.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz', 'fleet', 'bench'];
+const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz', 'fleet', 'bench', 'chart'];
 
 const FAIL_TEXT = {
   hull: 'Hull breached: the vessel took too much damage.',
@@ -47,6 +47,8 @@ export function createMenus(h) {
   $('board-licenses').addEventListener('click', () => h.onLicenses());
   $('lic-back').addEventListener('click', () => h.onBoard());
   $('board-fleet').addEventListener('click', () => h.onFleet());
+  $('board-chart').addEventListener('click', () => h.onChart());
+  $('br-plan').addEventListener('click', () => h.onPlanRoute());
   $('bench-btn').addEventListener('click', () => h.onBenchStart());
   $('bench-close').addEventListener('click', () => h.onBenchClose());
   $('bench-apply').addEventListener('click', () => h.onBenchApply($('bench-apply').dataset.id));
@@ -107,7 +109,9 @@ export function createMenus(h) {
           t.appendChild(lock);
         }
         const meta = el('div', 'm');
-        const bits = [`${m.from} → ${m.to}`, m.cargo, `Deadline ${formatTime(m.deadline)}`];
+        const bits = [`${m.from} → ${m.to}`, m.cargo];
+        if (m.planned) bits.push(`Route ${(m.routeLength / 1000).toFixed(1)} km, you choose the way`);
+        bits.push(`Deadline ${formatTime(m.deadline)}`);
         bits.push(m.kind === 'exam' ? 'Pays nothing: earns a license' : `Reward ${m.reward}`);
         for (const text of bits) meta.appendChild(el('span', '', text));
         b.append(t, meta);
@@ -118,7 +122,7 @@ export function createMenus(h) {
       show('board');
     },
 
-    // ctx: { dockName, access, exam: {fee, minScore, maxCollisions} | null, licenseName, vessels: [usable], vessel: chosen | null, deadline, forecast, seaText, tip }
+    // ctx: { dockName, access, exam: {fee, minScore, maxCollisions} | null, licenseName, vessels: [usable], vessel: chosen | null, deadline, forecast, seaText, tip, routeText }
     showBriefing(m, ctx) {
       $('br-title').textContent = m.title;
       $('br-summary').textContent = m.summary;
@@ -144,6 +148,10 @@ export function createMenus(h) {
         $('br-vessel').textContent = ctx.vessel ? `${ctx.vessel.name} (${VESSEL_CLASSES[ctx.vessel.class]})` : `Needs: ${m.vesselClasses.map((c) => VESSEL_CLASSES[c]).join(' or ')}`;
       }
       $('br-license').textContent = m.kind === 'training' ? 'None: sailing under instruction' : m.kind === 'exam' ? `Exam for the ${ctx.licenseName}` : ctx.licenseName;
+      const planned = !!m.planned && ctx.access.ok;
+      $('br-route-dt').classList.toggle('hidden', !planned);
+      $('br-routeinfo').classList.toggle('hidden', !planned);
+      if (planned) $('br-routetext').textContent = ctx.routeText;
       $('br-weather').textContent = ctx.forecast;
       $('br-sea').textContent = [ctx.seaText, ctx.tip].filter(Boolean).join(' ');
       const showExam = !!ctx.exam;
@@ -192,6 +200,7 @@ export function createMenus(h) {
       $('res-rep').textContent = String(r.reputation);
       $('res-xp').textContent = String(r.xp);
       $('res-vessel').textContent = info.vesselName ? `Vessel: ${info.vesselName}` : '';
+      $('res-route').textContent = info.routeText || '';
       $('res-best').textContent = `${info.newBest ? 'New best score! ' : ''}Best ${info.bestGrade} (${info.bestScore}) · fastest ${formatTime(info.bestTime)} · played ${info.plays}× · balance ${info.credits} credits`;
       $('res-retry').textContent = m.kind === 'exam' ? 'Exam briefing' : 'Retry mission';
       $('res-retry').classList.toggle('hidden', !!(ex && ex.awarded));

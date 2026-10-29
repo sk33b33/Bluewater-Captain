@@ -1,11 +1,15 @@
-// Stage 1 world: one 2 km sea cell ("box world" cell), one simple harbor, and obstacles.
-// Coordinates in metres. x east, z south, cell spans -1000..1000 on both axes.
-export const CELL_HALF = 1000;
-export const SOFT_LIMIT = 950; // warn past this
-export const HARD_LIMIT = 1010; // auto-return past this
+// The world: Bluewater Bay, a bounded 4 km x 4 km region (2 x 2 cells of 2 km) with four ports.
+// Coordinates in metres. x east, z south. Cell (0,0) spans -1000..1000 on both axes.
+// The whole region is loaded at once: at this size streaming is not needed (see docs/TECHNICAL_DESIGN.md).
+export const REGION = { minX: -1000, maxX: 3000, minZ: -1000, maxZ: 3000 };
+export const EDGE_WARN = 60; // warn this close to the region edge
+export const EDGE_OUT = 12; // auto-return this far beyond it
 
 export const LAND = [
-  { type: 'rect', name: 'West coast', cx: -1050, cz: 0, hx: 250, hz: 1200 },
+  { type: 'rect', name: 'West coast', cx: -1050, cz: 750, hx: 250, hz: 1950 },
+  { type: 'rect', name: 'East coast', cx: 3000, cz: 1000, hx: 300, hz: 2300 },
+  { type: 'rect', name: 'South coast', cx: 1000, cz: 3000, hx: 2400, hz: 300 },
+  { type: 'rect', name: 'Long Spit', cx: 1800, cz: 2300, hx: 25, hz: 400 },
 ];
 export const BREAKWATERS = [
   { type: 'rect', name: 'Breakwater north', cx: -640, cz: -100, hx: 6, hz: 100 },
@@ -14,11 +18,17 @@ export const BREAKWATERS = [
 export const DOCKS = [
   { type: 'rect', name: 'Main pier', cx: -740, cz: 150, hx: 50, hz: 5 },
   { type: 'rect', name: 'Pine Isle pier', cx: 385, cz: 250, hx: 25, hz: 3 },
+  { type: 'rect', name: 'Cape Quay pier', cx: 2650, cz: 300, hx: 50, hz: 5 },
+  { type: 'rect', name: 'Marina pier', cx: 400, cz: 2650, hx: 5, hz: 50 },
 ];
 export const ISLANDS = [
   { type: 'circle', name: 'Gull Rock', cx: 200, cz: -300, r: 60 },
   { type: 'circle', name: 'Pine Isle', cx: 500, cz: 250, r: 90 },
   { type: 'circle', name: 'Skerry', cx: -100, cz: -500, r: 40 },
+  { type: 'circle', name: 'Seal Rock', cx: 1500, cz: 60, r: 30 },
+  { type: 'circle', name: 'Seal Rock south', cx: 1500, cz: 145, r: 25 },
+  { type: 'circle', name: 'Anvil Reef', cx: 1100, cz: 1300, r: 120 },
+  { type: 'circle', name: 'Tern Island', cx: 2200, cz: 1500, r: 70 },
 ];
 
 // Route checkpoints; first is the harbor exit gate, last is the finish.
@@ -110,10 +120,10 @@ export function resolveCollisions(s, p, obstacles) {
   return { hit, impact, name };
 }
 
-// 'ok' | 'warn' (near edge) | 'out' (past hard limit)
+// 'ok' | 'warn' (near the region edge) | 'out' (past it: returned to the last safe point)
 export function edgeStatus(s) {
-  const m = Math.max(Math.abs(s.x), Math.abs(s.z));
-  if (m > HARD_LIMIT) return 'out';
-  if (m > SOFT_LIMIT) return 'warn';
+  const out = Math.max(REGION.minX - s.x, s.x - REGION.maxX, REGION.minZ - s.z, s.z - REGION.maxZ);
+  if (out > EDGE_OUT) return 'out';
+  if (out > -EDGE_WARN) return 'warn';
   return 'ok';
 }

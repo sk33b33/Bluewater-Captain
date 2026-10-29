@@ -42,7 +42,7 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   check(await vis('start'), 'title card shows');
   await page.click('#start-btn');
   check((await mode()) === 'board' && (await vis('board')), 'mission board opens');
-  check((await page.locator('.mcard').count()) === 10, 'board lists 10 missions (training, contracts, exams)');
+  check((await page.locator('.mcard').count()) === 15, 'board lists 15 missions (training, contracts, exams)');
   await page.screenshot({ path: path.join(out, 'm-board.png') });
 
   await page.locator('.mcard[data-id="supply-run"]').click();

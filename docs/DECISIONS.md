@@ -68,3 +68,14 @@ Record each decision with date, context, options, decision, and consequences.
 - Shore foam and shallow tint come from a 512x512 texture baked once from the obstacle list; this avoids per-pixel geometry maths on weak GPUs.
 - Benchmark runs inside the game so the player can measure their own hardware, because headless software rendering here cannot.
 - The flat far-water plane is kept at -6 m so wave troughs never expose it (a Stage 2 bug).
+
+## D-010 — Stage 6 world, chart and route model (ACCEPTED as part of Stage 6 build, 2026-10-29)
+- **World:** Bluewater Bay is 2 x 2 cells of 2 km (the box world from GAME_DESIGN, at a size that loads whole). Everything stays in memory (about 25 obstacles); streaming is deferred until a larger world needs it. The region edge warns 60 m inside and returns the boat 12 m outside.
+- **Chart as a graph:** routes are paths through charted markers, not free drawing. Every leg is pre-validated: its length and clearance come from the real obstacles, and a hull sweep of every leg for every vessel is a unit test. Free-form waypoints were rejected because they could not be verified safe.
+- **Ports own their approaches:** each port defines its berth, start pose, fairway marker, inbound waypoints (harbor mouth and basin), slow zone and maximum vessel length. Route search never cuts through another port.
+- **Planned missions** name two ports; start, berth, names, default route and deadline are derived. The route the player picks is applied to a copy of the mission (`planMission`), so the base mission is never mutated and retry keeps the chosen route. Training and exams keep fixed courses.
+- **Deadlines scale with the route** (`length / 6.8 m/s + 30 s`, then vessel and sea factors), so a longer route is not punished for being longer. Route choice is therefore about risk (narrow passage), the early-arrival bonus (up to +15% credits, from 85% of the deadline down to 50%) and speed-limit zones, not about avoiding timeouts.
+- **Port approach limits:** slow zones (10 to 14 kn) cost 0.5 Navigation points per second over the limit, capped at 30% of the category. Port size limits filter which vessels may take a job.
+- **Progression:** far contracts require reputation (5 to 10) on top of licenses. Reputation comes from completing jobs, so the bay opens up gradually.
+- **Shore texture** now covers the whole region at 1024 x 1024 and is baked only near obstacles; the water mesh follows the camera, snapped to its grid.
+- Lesson: a global `canvas {}` style meant for the game view made the chart canvas full-screen. Game canvas rules are now scoped to `#game`.

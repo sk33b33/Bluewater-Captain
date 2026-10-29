@@ -31,6 +31,14 @@
 - The benchmark takes over the screen for about 20 seconds and moves the boat on its own; Esc cancels.
 - The headless performance numbers are from software rendering and mean nothing for real GPUs.
 
+- Stage 6 estimates: route deadlines (route length / 6.8 m/s + 30 s), slow-zone penalties, the early bonus and reputation gates are unplayed. Long jobs (3 to 4 km) take 6 to 10 minutes and may feel long; there is no pause-and-save mid-mission.
+- Routes are paths through charted markers only; you cannot place your own waypoints, and every leg is a straight line.
+- Only one hazard type is modelled on the chart (narrow passage). No tides, currents, shoals with depth, or traffic.
+- The harbor mouth and basin are fixed approach waypoints for the home port, so the last stretch into Bluewater Harbor is not up to the player.
+- Chart clicking is verified with synthetic input only; markers close together on the map (for example H, A, G near the harbor) may be fiddly on a phone. The list under "Your route" is the reliable alternative.
+- The whole 4 km region is always loaded; far scenery fades only through fog.
+- The gap at the Seal Rocks is only about 30 m wide, which is tight for the passenger craft; route search allows it because the hull sweep passes, but it is hard to hit by hand.
+
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |
 |----|------|-----------|--------|-----------|

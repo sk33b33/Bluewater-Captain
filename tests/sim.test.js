@@ -89,8 +89,11 @@ test('no route checkpoint is inside an obstacle', () => {
 
 test('edge status', () => {
   assert.equal(edgeStatus({ x: 0, z: 0 }), 'ok');
-  assert.equal(edgeStatus({ x: 960, z: 0 }), 'warn');
+  assert.equal(edgeStatus({ x: 2900, z: 1500 }), 'ok', 'the east of the region is open water now');
+  assert.equal(edgeStatus({ x: -960, z: 0 }), 'warn');
+  assert.equal(edgeStatus({ x: 1000, z: 2960 }), 'warn');
   assert.equal(edgeStatus({ x: 0, z: -1100 }), 'out');
+  assert.equal(edgeStatus({ x: 3050, z: 0 }), 'out');
 });
 
 test('route: checkpoints must be reached in order; timer starts at first', () => {

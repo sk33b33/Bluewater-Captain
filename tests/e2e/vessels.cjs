@@ -32,7 +32,7 @@ async function open(browser, url, profile) {
   {
     const base = { version: 3, credits: 500, reputation: 5, xp: 0, completed: {}, vessel: 'small-motorboat', licenses: { 'small-craft-permit': licensed() } };
     const { ctx, page, errors } = await open(browser, server.url, base);
-    check((await page.locator('.mcard').count()) === 10, 'board lists 10 missions');
+    check((await page.locator('.mcard').count()) === 15, 'board lists 15 missions');
     check((await page.textContent('#p-vessel')) === 'Harbor Skiff', 'board shows the active vessel');
     check((await page.locator('.mcard.locked[data-id="workboat-haul"]').count()) === 1, 'Heavy Gear Haul is locked with only the permit');
     check(/Coastal Skipper/.test(await page.textContent('.mcard[data-id="workboat-haul"] .lock-note')), 'locked card names the license that unlocks the vessel');
@@ -74,20 +74,22 @@ async function open(browser, url, profile) {
     const wbDeadline = await page.textContent('#br-deadline');
     await page.selectOption('#br-vessel-select', 'small-motorboat');
     const skDeadline = await page.textContent('#br-deadline');
-    check(wbDeadline !== skDeadline && /3:53/.test(skDeadline) && /4:41/.test(wbDeadline), `deadline follows the vessel (${wbDeadline.slice(0, 5)} workboat, ${skDeadline.slice(0, 5)} skiff)`);
+    const secs = (t) => { const m = /(\d+):(\d+)/.exec(t); return Number(m[1]) * 60 + Number(m[2]); };
+    check(secs(wbDeadline) > secs(skDeadline), `deadline follows the vessel (${wbDeadline.slice(0, 5)} workboat, ${skDeadline.slice(0, 5)} skiff)`);
     await page.selectOption('#br-vessel-select', 'coastal-passenger');
     await page.screenshot({ path: path.join(out, 'v-brief.png') });
     await page.selectOption('#br-vessel-select', 'workboat');
     await page.click('#br-depart');
     await waitMode(page, 'play');
     check((await page.evaluate(() => window.__bwc.vesselId)) === 'workboat' && (await page.evaluate(() => window.__bwc.run.vesselId)) === 'workboat', 'mission runs with the chosen vessel');
-    // Supply Run is a fresh breeze: the written 210 s becomes 233 s for the skiff and 281 s for the workboat.
-    check((await page.evaluate(() => window.__bwc.run.deadline)) === 281, 'run deadline scaled for the workboat and the sea (281 s)');
+    // The deadline is the route's, scaled for the vessel and the sea (the workboat gets more time than the skiff).
+    const dl = await page.evaluate(() => window.__bwc.run.deadline);
+    check(dl === secs(wbDeadline), `run deadline matches the briefing for the workboat (${dl} s)`);
     await page.waitForFunction(() => /wind \d+ kn/.test(document.getElementById('hud-wind').textContent), null, { timeout: 30000 });
     // The HUD is drawn by the frame loop, so wait for the first frame instead of reading it immediately.
     await page.waitForFunction(() => /wind \d+ kn/.test(document.getElementById('hud-wind').textContent), null, { timeout: 30000 });
     check(/wind \d+ kn/.test(await page.textContent('#hud-wind')), 'HUD shows the wind');
-    check(/4:41/.test(await page.textContent('#hud-limit')), 'HUD shows the workboat deadline');
+    check(/\d:\d\d/.test(await page.textContent('#hud-limit')) && secs(await page.textContent('#hud-limit')) === dl, 'HUD shows the workboat deadline');
     // drive: workboat accelerates slower than the skiff would; just check it moves and steers
     await page.keyboard.down('KeyW');
     await page.waitForFunction(() => window.__bwc.vessel.u > 1.0, null, { timeout: 40000 });

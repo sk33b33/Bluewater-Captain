@@ -11,7 +11,10 @@ import { BUOY_RADIUS, staticObstacles, resolveCollisions, edgeStatus } from './s
 import { MISSIONS, BERTHS, getMission } from './data/missions.js';
 import { LICENSES, getLicense } from './data/licenses.js';
 import { SMALL_CRAFT_QUESTIONS, COASTAL_SKIPPER_QUESTIONS } from './data/quiz.js';
-import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, DOCK } from './sim/mission.js';
+import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, zoneAt, PORT_ZONES, DOCK } from './sim/mission.js';
+import { findRoutes, routeFromPath, nextMarkers, isComplete, validatePath, planMission, estimateSeconds } from './sim/routes.js';
+import { PORTS } from './data/ports.js';
+import { createChart } from './ui/chart.js';
 import { loadProfile, saveProfile, recordResult, clearProfile, safeStorage } from './sim/profile.js';
 import { formatTime } from './sim/route.js';
 import { pickQuestions, scoreQuiz } from './sim/quiz.js';
@@ -199,14 +202,29 @@ function enterBoard() {
 }
 
 let briefingVessel = null;
+let briefingRoute = null;
+const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
+
+// Keep the player's chosen route if this vessel can still sail it, otherwise fall back to the shortest one.
+function ensureRoute(m, vessel) {
+  if (!m.planned || !vessel) { briefingRoute = null; return; }
+  const keep = briefingRoute && briefingRoute.missionId === m.id && validatePath(m.fromPort, m.toPort, briefingRoute.path, vessel).ok;
+  if (keep) return;
+  const r = findRoutes(m.fromPort, m.toPort, { vessel, max: 1 })[0];
+  briefingRoute = r ? { ...r, missionId: m.id } : null;
+}
+
 function showBriefing(m, keepVessel = false) {
   selected = m;
   mode = 'briefing';
+  chart.hide();
   const ex = examFor(m);
   const lic = getLicense(m.license);
   const wx = getWeather(m.weather);
   const vessels = usableVessels(profile, m);
   if (!keepVessel || !briefingVessel || !vessels.some((v) => v.id === briefingVessel.id)) briefingVessel = chooseVessel(profile, m);
+  ensureRoute(m, briefingVessel);
+  const sailed = m.planned && briefingRoute ? planMission(m, briefingRoute) : m;
   menus.showBriefing(m, {
     dockName: m.dock ? BERTHS[m.dock].name : null,
     access: missionAccess(profile, m),
@@ -214,11 +232,82 @@ function showBriefing(m, keepVessel = false) {
     licenseName: lic ? lic.name : '',
     vessels,
     vessel: briefingVessel,
-    deadline: briefingVessel ? deadlineFor(m, briefingVessel, wx) : m.deadline,
+    deadline: briefingVessel ? deadlineFor(sailed, briefingVessel, wx) : sailed.deadline,
+    routeText: briefingRoute ? `${briefingRoute.name}: ${km(briefingRoute.length)}${briefingRoute.hazards.length ? ', with a narrow passage' : ''}` : '',
     forecast: forecastText(wx),
     seaText: briefingVessel ? seaEffectText(wx, briefingVessel) : '',
     tip: wx.tip,
   });
+}
+
+// ---- chart / route planning
+let planState = null; // { mission, vessel, path }
+const chart = createChart({
+  onMarker: (id) => {
+    if (!planState) return;
+    const opts = nextMarkers(planState.path, planState.mission.toPort, planState.vessel);
+    if (opts.some((o) => o.id === id)) { planState.path.push(id); planState.message = ''; }
+    else planState.message = 'That marker is not one leg from the end of your route.';
+    renderChart();
+  },
+  onUndo: () => { if (planState && planState.path.length > 1) { planState.path.pop(); planState.message = ''; renderChart(); } },
+  onReset: () => { if (planState) { planState.path = suggestedRoutes()[0].path.slice(); planState.message = ''; renderChart(); } },
+  onPickRoute: (i) => { if (planState) { planState.path = suggestedRoutes()[i].path.slice(); planState.message = ''; renderChart(); } },
+  onConfirm: () => {
+    if (!planState) return;
+    const { mission: m, vessel, path } = planState;
+    const v = validatePath(m.fromPort, m.toPort, path, vessel);
+    if (!v.ok || !isComplete(path, m.toPort)) { planState.message = v.reason || 'Finish the route at the destination port first.'; renderChart(); return; }
+    const r = routeFromPath(m.fromPort, m.toPort, path);
+    const match = suggestedRoutes().find((x) => x.id === r.id);
+    briefingRoute = { ...r, name: match ? match.name : 'Custom route', via: match ? match.via : 'your own route', missionId: m.id };
+    planState = null;
+    showBriefing(m, true);
+  },
+  onCancel: () => {
+    const m = planState && planState.mission;
+    planState = null;
+    if (m) showBriefing(m, true); else enterBoard();
+  },
+});
+
+function suggestedRoutes() {
+  return findRoutes(planState.mission.fromPort, planState.mission.toPort, { vessel: planState.vessel, max: 3 });
+}
+
+function renderChart() {
+  const { mission: m, vessel, path } = planState;
+  const routes = suggestedRoutes();
+  const complete = isComplete(path, m.toPort);
+  const wx = getWeather(m.weather);
+  let summary = null;
+  if (complete) {
+    const r = routeFromPath(m.fromPort, m.toPort, path);
+    summary = { length: r.length, seconds: estimateSeconds(r, vessel, wx), deadline: deadlineFor(planMission(m, r), vessel, wx), hazards: r.hazards };
+  }
+  const idx = routes.findIndex((r) => r.id === path.join('>'));
+  menus.hideAll();
+  chart.show({
+    planning: true, mission: m, vessel, from: m.fromPort, to: m.toPort, routes, selectedIndex: idx, path, complete,
+    next: nextMarkers(path, m.toPort, vessel), summary,
+    message: planState.message || (complete ? '' : `Keep adding legs until you reach ${PORTS[m.toPort].name}.`),
+  });
+}
+
+function openChart(planning) {
+  if (planning) {
+    if (!selected || !selected.planned || !briefingRoute || !briefingVessel) return;
+    planState = { mission: selected, vessel: briefingVessel, path: briefingRoute.path.slice(), message: '' };
+    mode = 'chart';
+    renderChart();
+  } else {
+    planState = null;
+    clearMission();
+    setPlaying(false);
+    mode = 'chart';
+    menus.hideAll();
+    chart.show({ planning: false, routes: [], path: [], next: [] });
+  }
 }
 
 function showFleet() {
@@ -262,7 +351,7 @@ function depart() {
     if (!paid.ok) { showBriefing(selected); return; }
     saveProfile(storage, profile);
   }
-  startMission(selected, briefingVessel);
+  startMission(selected.planned && briefingRoute ? planMission(selected, briefingRoute) : selected, briefingVessel);
 }
 
 function respawn(reason, manual = false) {
@@ -289,7 +378,13 @@ function finish() {
   }
   mode = 'result';
   setPlaying(false);
-  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam, vesselName: vp.name });
+  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam, vesselName: vp.name, routeText: routeSummary(mission, result) });
+}
+
+function routeSummary(m, result) {
+  if (!m.routeName) return '';
+  const bonus = result.earlyBonusCredits > 0 ? ` Early-arrival bonus: +${result.earlyBonusCredits} credits.` : '';
+  return `Route: ${m.routeName}, ${km(m.routeLength)}.${bonus}`;
 }
 
 function failMission(reason) {
@@ -305,6 +400,8 @@ function handleEvents(events) {
       const wp = mission.waypoints[e.index];
       if (e.last && mission.dock) hud.warn(`Docking: ease into the green berth at ${BERTHS[mission.dock].name}`, 3500);
       else if (!e.last) hud.warn(`Checkpoint: ${wp.name}`, 1500);
+    } else if (e.type === 'speeding') {
+      hud.warn(`Slow down: ${e.zone.name} limit is ${Math.round(e.zone.knots)} knots`, 2500);
     } else if (e.type === 'damage') {
       hud.warn(`Collision! Hull ${Math.round(e.integrity)}%`, 1500);
     } else if (e.type === 'complete') {
@@ -323,6 +420,8 @@ const menus = createMenus({
   onBoard: () => enterBoard(),
   onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission, vp); },
   onFleet: () => showFleet(),
+  onChart: () => openChart(false),
+  onPlanRoute: () => openChart(true),
   onBenchStart: () => benchStart(),
   onBenchApply: (id) => { settings.quality = id; qualitySel.value = id; saveSettings(); applyQuality(id); governor.reset(); enterBoard(); },
   onBenchClose: () => enterBoard(),
@@ -543,6 +642,7 @@ function frame(now) {
     else if (mode === 'briefing') enterBoard();
     else if (mode === 'licenses') enterBoard();
     else if (mode === 'fleet') enterBoard();
+    else if (mode === 'chart') { const m = planState && planState.mission; planState = null; if (m) showBriefing(m, true); else enterBoard(); }
     else if (mode === 'quiz') showLicenses();
     else if (mode === 'bench') benchCancel();
   }
@@ -554,6 +654,7 @@ function frame(now) {
 
   // visuals
   water.userData.update(time);
+  water.userData.follow(camera.position.x, camera.position.z);
   poseBoat(boat, vessel, time, vp, seaWaves);
   if (buoys) updateBuoys(buoys, time, run && run.phase === 'underway' ? run.route.next : -1, seaWaves);
   if (wakeMesh) wakeMesh.userData.sync(wake, time, seaWaves, camera, renderer.domElement.height);
@@ -587,10 +688,25 @@ function dockHint(d, dist) {
   return 'Hold steady...';
 }
 
+function zoneInfo() {
+  const z = zoneAt(vessel, PORT_ZONES);
+  if (!z) return null;
+  const speed = Math.hypot(vessel.u, vessel.v);
+  return { text: `${z.name} slow zone: limit ${Math.round(z.knots)} kn`, over: speed > z.limit };
+}
+
 function windText() {
   const w = windAt(weather, time);
   const vis = weather.visibility < 1500 ? ` \u00b7 vis ${weather.visibility} m` : '';
   return `wind ${(w.speed * 1.943844).toFixed(0)} kn ${windArrow(vessel.heading, w)} \u00b7 sea ${weather.waveHs.toFixed(1)} m${vis}`;
+}
+
+function remainingMeters() {
+  const wps = run.mission.waypoints;
+  let d = 0, x = vessel.x, z = vessel.z;
+  for (let i = run.route.next; i < wps.length; i++) { d += Math.hypot(wps[i].x - x, wps[i].z - z); x = wps[i].x; z = wps[i].z; }
+  if (run.mission.dock) { const b = BERTHS[run.mission.dock]; d += Math.hypot(b.cx - x, b.cz - z); }
+  return d;
 }
 
 function updateHud() {
@@ -610,6 +726,7 @@ function updateHud() {
     const wp = m.waypoints[Math.min(run.route.next, m.waypoints.length - 1)];
     tx = wp.x; tz = wp.z;
     objective = `${Math.min(run.route.next + 1, m.waypoints.length)}/${m.waypoints.length}  ${wp.name}  ${Math.round(Math.hypot(tx - vessel.x, tz - vessel.z))} m`;
+    if (m.planned) objective += ` \u00b7 ${km(remainingMeters())} to go`;
   }
   const bearing = Math.atan2(tx - vessel.x, -(tz - vessel.z));
   hud.update({
@@ -620,6 +737,7 @@ function updateHud() {
     timer: run.departed ? formatTime(run.time) : '--:--',
     limit: `deadline ${formatTime(run.deadline)}`,
     wind: windText(),
+    zone: zoneInfo(),
     late: run.time > run.deadline,
     hull: run.integrity,
     bearingRel: (angleDiff(bearing, vessel.heading) * 180) / Math.PI,
@@ -636,6 +754,8 @@ window.__bwc = {
   BERTHS,
   LICENSES,
   get vesselId() { return vp.id; },
+  get route() { return briefingRoute; },
+  get plan() { return planState; },
   get quality() { return qualityId; },
   get weatherId() { return weather.id; },
   get seaWaves() { return seaWaves; },

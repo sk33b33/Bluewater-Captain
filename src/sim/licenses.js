@@ -2,6 +2,7 @@
 import { LICENSES, getLicense, TRAINING_VESSELS, VESSEL_CLASSES } from '../data/licenses.js';
 import { getMission } from '../data/missions.js';
 import { VESSELS, getVessel, DEFAULT_VESSEL } from '../data/vessels.js';
+import { getPort } from '../data/ports.js';
 
 export function emptyLicenseState() {
   return { held: false, heldAt: null, grandfathered: false, written: { attempts: 0, bestScore: 0, passed: false }, practical: { attempts: 0, bestScore: 0, passed: false } };
@@ -91,8 +92,15 @@ export function usableClasses(profile, mission) {
 // Vessels the player could take on this mission, in fleet order.
 export function usableVessels(profile, mission) {
   const classes = usableClasses(profile, mission);
-  return VESSELS.filter((v) => classes.includes(v.class));
+  return VESSELS.filter((v) => classes.includes(v.class) && vesselFitsPorts(v, mission));
 }
+
+// Longest vessel the mission's ports will take (Infinity for missions with no ports).
+export function portLengthLimit(mission) {
+  const lims = [mission.fromPort, mission.toPort].filter(Boolean).map((id) => getPort(id).maxLength);
+  return lims.length ? Math.min(...lims) : Infinity;
+}
+export const vesselFitsPorts = (v, mission) => v.length <= portLengthLimit(mission);
 
 // The active vessel if it works for this mission, otherwise the first one that does.
 export function chooseVessel(profile, mission) {
@@ -126,6 +134,11 @@ export function selectVessel(profile, id) {
   return true;
 }
 
+function portNameLimit(mission) {
+  const tight = [mission.fromPort, mission.toPort].filter(Boolean).map(getPort).sort((a, b) => a.maxLength - b.maxLength)[0];
+  return `${tight.name} only takes vessels up to ${tight.maxLength} m, and none of your licensed vessels fit.`;
+}
+
 // Can the player start this mission right now? { ok, reason }
 export function missionAccess(profile, mission) {
   const lic = getLicense(mission.license);
@@ -144,7 +157,9 @@ export function missionAccess(profile, mission) {
   }
   if (mission.kind === 'contract') {
     if (!isHeld(profile, lic.id)) return { ok: false, reason: `Requires the ${lic.name}. Earn it on the Licenses screen.` };
+    if (mission.minReputation && profile.reputation < mission.minReputation) return { ok: false, reason: `Needs reputation ${mission.minReputation} (you have ${profile.reputation}). Complete other contracts to build it.` };
     if (!usable.length) return { ok: false, reason: needsVessel() };
+    if (!usableVessels(profile, mission).length) return { ok: false, reason: `${portNameLimit(mission)} Choose a different job or vessel.` };
     return { ok: true, reason: '' };
   }
   const ev = evaluateLicense(profile, lic);

@@ -86,6 +86,15 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** visuals and simulation are stable at target settings and weather affects gameplay.
 
 ## Stage 6 — Multiple ports and route planning
+**Status: implemented 2026-10-29, awaiting user testing and approval.** Acceptance criteria used:
+1. A connected region: Bluewater Bay, a bounded 4 km x 4 km box (2 x 2 cells) with four ports (Bluewater Harbor, Pine Isle Landing, Cape Quay, Southgate Marina), islands, reefs, a spit and coasts. The whole region is loaded at once (no streaming needed at this size).
+2. Navigation chart: 17 markers and charted legs with computed lengths and clearances; one narrow passage (the Seal Rocks gap) as a deliberate shortcut hazard.
+3. Route planning: for every port pair the planner offers the shortest route and distinct alternatives; the player can pick a suggestion or build a route marker by marker (list or clicking the chart); incomplete or invalid routes cannot be confirmed; distance, estimated time, deadline and hazards are shown.
+4. The planned route is what the mission sails (gates, objectives, distance-to-go, deadline); the results name the route.
+5. Port approach limits: slow zones around every berth with a HUD readout, a warning, and a Navigation penalty; vessel size limits per port (Southgate takes up to 12 m).
+6. Port-to-port progression: nine contracts across all four ports; far jobs need reputation 5 to 10; some need a specific vessel; arriving well inside the deadline pays up to +15%.
+**Gate:** choose and complete different routes with clear objectives. Verified by a scripted captain on every suggested route with every allowed vessel (37 combinations) plus browser tests.
+**Exclusions kept out:** world streaming, tides and currents, channel draft limits and large vessels (Stage 7), more mission types and a changing economy (Stage 8).
 - Add a small connected region with multiple ports.
 - Chart/route planning, navigation markers, route distance, port approach limits.
 - Mission selection and port-to-port progression.

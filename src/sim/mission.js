@@ -3,6 +3,11 @@
 import { createRouteState, updateRoute, respawnPoint } from './route.js';
 import { deadlineFor } from './weather.js';
 import { getWeather } from '../data/weather.js';
+import { portZones } from '../data/ports.js';
+
+export const PORT_ZONES = portZones(); // slow zones around every berth
+export const SPEEDING_POINTS_PER_SECOND = 0.5; // Navigation points lost per second over a port speed limit
+export const EARLY_BONUS_MAX = 0.15; // up to +15% credits for arriving well inside the deadline
 
 export const DOCK = { maxSpeed: 1.5, maxAngleDeg: 25, holdSeconds: 2, maxOffset: 8 };
 export const TIME_LIMIT_FACTOR = 2; // mission fails at deadline x this
@@ -27,6 +32,9 @@ export function createRun(mission, vessel = null) {
     integrity: 100,
     collisions: 0,
     respawns: 0,
+    speedingTime: 0, // seconds spent over a port speed limit
+    speedViolations: 0,
+    inSpeedViolation: false,
     dockHold: 0,
     dock: null, // { centre, angleDeg } captured when docked
     failReason: null,
@@ -83,12 +91,27 @@ export function abortRun(run) {
 }
 
 // Advance the run. Returns a list of events: waypoint, phase, complete, failed.
-export function stepRun(run, vessel, dt, berths) {
+export function zoneAt(vessel, zones) {
+  for (const z of zones) if (Math.hypot(vessel.x - z.x, vessel.z - z.z) <= z.radius) return z;
+  return null;
+}
+
+export function stepRun(run, vessel, dt, berths, zones = PORT_ZONES) {
   const events = [];
   if (run.phase !== 'underway' && run.phase !== 'docking') return events;
   const m = run.mission;
   if (!run.departed && Math.hypot(vessel.u, vessel.v) > 0.5) run.departed = true;
   if (run.departed) run.time += dt;
+
+  // Port approach limits: slow zones around every berth.
+  const zone = zoneAt(vessel, zones);
+  if (zone && Math.hypot(vessel.u, vessel.v) > zone.limit) {
+    run.speedingTime += dt;
+    if (!run.inSpeedViolation) { run.speedViolations += 1; events.push({ type: 'speeding', zone }); }
+    run.inSpeedViolation = true;
+  } else {
+    run.inSpeedViolation = false;
+  }
 
   if (run.phase === 'underway') {
     const reached = updateRoute(run.route, m.waypoints, vessel, 0);
@@ -156,12 +179,16 @@ export function scoreRun(run) {
   });
 
   const perRespawn = max.navigation * 0.2;
-  const nav = Math.max(0, Math.round(max.navigation - perRespawn * run.respawns));
+  const speedPenalty = Math.min(max.navigation * 0.3, Math.floor(run.speedingTime * SPEEDING_POINTS_PER_SECOND));
+  const nav = Math.max(0, Math.round(max.navigation - perRespawn * run.respawns - speedPenalty));
+  const navNotes = [];
+  if (run.respawns > 0) navNotes.push(`${run.respawns} respawn${run.respawns === 1 ? '' : 's'} (-${perRespawn} each)`);
+  if (speedPenalty > 0) navNotes.push(`${Math.round(run.speedingTime)} s over a port speed limit (-${speedPenalty})`);
   cats.push({
     name: 'Navigation',
     points: nav,
     max: max.navigation,
-    note: run.respawns === 0 ? 'All marks passed, no respawns' : `${run.respawns} respawn${run.respawns === 1 ? '' : 's'} (-${perRespawn} each)`,
+    note: navNotes.length ? navNotes.join('; ') : 'All marks passed, no respawns, port speed limits kept',
   });
 
   const late = Math.max(0, run.time - run.deadline);
@@ -187,12 +214,17 @@ export function scoreRun(run) {
 
   const total = cats.reduce((a, c) => a + c.points, 0);
   const grade = gradeFor(total);
+  // Arriving well inside the deadline pays a bonus: 0 at 85% of the deadline, full at 50% or less.
+  const early = m.reward > 0 ? clamp((0.85 - run.time / run.deadline) / 0.35, 0, 1) * EARLY_BONUS_MAX : 0;
+  const baseReward = Math.round(m.reward * (0.5 + (0.5 * total) / 100));
   return {
     categories: cats,
     total,
     grade,
     time: run.time,
-    reward: Math.round(m.reward * (0.5 + (0.5 * total) / 100)),
+    reward: Math.round(baseReward * (1 + early)),
+    earlyBonus: early,
+    earlyBonusCredits: Math.round(baseReward * (1 + early)) - baseReward,
     reputation: Math.round((m.rep * total) / 100),
     xp: Math.round(m.xp * (0.5 + (0.5 * total) / 100)),
   };

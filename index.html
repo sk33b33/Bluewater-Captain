@@ -8,7 +8,7 @@
   :root { --panel: rgba(10,26,40,.78); --text: #f2f6f9; --muted: #a9bccb; --accent: #ffd34d; --danger: #ff7a59; --ok: #5fd39a; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #0b2234; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); }
-  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .panel { background: var(--panel); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(4px); }
   #hud { position: fixed; inset: 0; pointer-events: none; }
   #hud-top { position: absolute; top: 12px; left: 16px; right: 120px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
@@ -100,7 +100,20 @@
   #perf { position: fixed; top: 60px; left: 16px; z-index: 9; font: 12px ui-monospace, Menlo, Consolas, monospace; background: rgba(0,0,0,.6); color: #cfe; padding: 3px 8px; border-radius: 6px; pointer-events: none; }
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 9; background: #10283b; border: 1px solid #3a6a8c; padding: 10px 16px; border-radius: 10px; max-width: min(92vw, 520px); font-size: 14px; }
   #hud-wind { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .card.wide.chart-card { max-width: 980px; }
+  .chart-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  #chart-canvas { width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; border: 1px solid #2f5d7c; cursor: crosshair; touch-action: manipulation; }
+  .route-btn.on { background: var(--accent); color: #1a1a1a; }
+  ol.legs { margin: 6px 0; padding-left: 20px; font-size: 14px; display: grid; gap: 3px; }
+  ol.legs li.narrow { color: #ffb08a; }
+  .chart-summary { font-weight: 700; margin: 6px 0; }
+  #chart.view-only .plan-only { display: none; }
+  #chart:not(.view-only) .view-only-only { display: none; }
+  ul.plain.ports { list-style: none; padding: 0; display: grid; gap: 8px; }
+  @media (max-width: 760px) { .chart-body { grid-template-columns: 1fr; } }
   button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+  #hud-zone { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  #hud-zone.over { color: var(--danger); font-weight: 700; }
   #hud-limit { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
   #hud-timer.late { color: var(--danger); }
   #hud-hull-box.low .v { color: var(--danger); }
@@ -153,11 +166,11 @@
 
 <div id="hud" aria-live="off">
   <div id="hud-top">
-    <div class="panel"><div id="hud-objective">-</div></div>
+    <div class="panel"><div id="hud-objective">-</div><div id="hud-zone" class="hidden"></div></div>
     <div class="panel"><div id="hud-timer">--:--</div><div id="hud-limit"></div><div id="hud-wind"></div></div>
   </div>
   <div id="hud-warning" role="alert"></div>
-  <div id="badge">Stage 5 prototype &middot; placeholder art</div>
+  <div id="badge">Stage 6 prototype &middot; placeholder art</div>
   <div id="hud-bottom">
     <div class="panel stat"><div class="v" id="hud-speed">0.0</div><div class="l">knots</div>
       <div id="hud-throttle"><div id="hud-throttle-fill"></div></div></div>
@@ -189,7 +202,7 @@
 <div id="start" class="overlay hidden">
   <div class="card">
     <h1>Bluewater Captain</h1>
-    <p>Stage 5 prototype: earn licenses, pick a vessel and a contract on the mission board, and sail it through the day's weather to the pier. All art is temporary placeholder.</p>
+    <p>Stage 6 prototype: earn licenses, pick a vessel and a contract on the mission board, plan your route across the bay on the chart, and sail it through the day's weather to the pier. All art is temporary placeholder.</p>
     <p class="touch-note">Touch: slide the left lever up for throttle (it stays where you leave it), slide the bottom-right bar to steer, drag the water to look around. Steering needs some speed.</p>
     <div class="keys">
       <span><kbd>W</kbd> <kbd>&uarr;</kbd></span><span>Throttle forward</span>
@@ -214,6 +227,7 @@
     <div class="row">
       <button id="board-licenses">Licenses</button>
       <button id="board-fleet" class="ghost">Fleet</button>
+      <button id="board-chart" class="ghost">Chart</button>
       <button id="board-settings" class="ghost">Settings</button>
       <button id="reset-btn" class="ghost">Reset progress</button>
       <span id="reset-note" class="hidden" style="font-size:13px;color:var(--danger)">Click Reset progress again to erase credits and best scores.</span>
@@ -233,6 +247,7 @@
       <dt>Reward</dt><dd id="br-reward"></dd>
       <dt>Vessel</dt><dd><span id="br-vessel"></span><select id="br-vessel-select" class="hidden" aria-label="Choose vessel"></select></dd>
       <dt>License</dt><dd id="br-license"></dd>
+      <dt id="br-route-dt" class="hidden">Route</dt><dd id="br-routeinfo" class="hidden"><span id="br-routetext"></span> <button id="br-plan" class="ghost" type="button">Plan route on the chart</button></dd>
       <dt>Forecast</dt><dd id="br-weather"></dd>
       <dt id="br-exam-dt" class="hidden">Exam rules</dt><dd id="br-exam" class="hidden"></dd>
     </dl>
@@ -262,6 +277,7 @@
       <div id="res-tips-wrap" class="hidden"><div class="group-h">How to score higher</div><ul id="res-tips" class="tips"></ul></div>
       <div class="reward" id="res-reward-line">Reward <b id="res-reward">0</b> credits &middot; Reputation +<b id="res-rep">0</b> &middot; XP +<b id="res-xp">0</b></div>
       <div id="res-vessel" style="color:var(--muted);font-size:14px"></div>
+      <div id="res-route" style="color:var(--muted);font-size:14px"></div>
       <div id="res-best" style="color:var(--muted);font-size:14px"></div>
     </div>
     <div id="res-fail" class="hidden">
@@ -281,6 +297,43 @@
     <p class="note">Every vessel drives differently. Bars compare the fleet; numbers are measured from the boat model. Bigger vessels need a license.</p>
     <div id="fleet-list"></div>
     <div class="row"><button id="fleet-licenses" class="ghost">Licenses</button><button id="fleet-back" class="ghost">Back to board</button></div>
+  </div>
+</div>
+
+<div id="chart" class="overlay hidden">
+  <div class="card wide chart-card">
+    <h2 id="chart-title">Chart</h2>
+    <p id="chart-sub" class="note"></p>
+    <div class="chart-body">
+      <div>
+        <canvas id="chart-canvas" width="600" height="600" role="img" aria-label="Chart of Bluewater Bay showing ports, markers and your route"></canvas>
+        <p class="note plan-only">Click a ringed marker to extend your route, or use the list.</p>
+      </div>
+      <div>
+        <div class="plan-only">
+          <div class="group-h">Route options</div>
+          <div id="chart-routes" class="row" style="margin-top:6px"></div>
+          <div class="group-h">Your route</div>
+          <ol id="chart-legs" class="legs"></ol>
+          <div id="chart-summary" class="chart-summary"></div>
+          <div id="chart-hazards" class="lock-note"></div>
+          <div class="row">
+            <select id="chart-next" aria-label="Next marker"></select>
+            <button id="chart-add" class="ghost" type="button">Add leg</button>
+            <button id="chart-undo" class="ghost" type="button">Undo</button>
+            <button id="chart-reset" class="ghost" type="button">Reset</button>
+          </div>
+          <div id="chart-msg" class="lock-note"></div>
+        </div>
+        <div class="view-only-only"></div>
+        <div class="group-h">Ports</div>
+        <ul id="chart-ports" class="plain ports"></ul>
+      </div>
+    </div>
+    <div class="row">
+      <button id="chart-confirm" type="button" class="plan-only">Use this route</button>
+      <button id="chart-cancel" type="button" class="ghost">Back</button>
+    </div>
   </div>
 </div>
 

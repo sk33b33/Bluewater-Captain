@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { LAND, BREAKWATERS, DOCKS, ISLANDS } from '../sim/world.js';
 import { gateBuoys } from '../data/missions.js';
+import { PORTS } from '../data/ports.js';
 import { getWaterHeight, WAVES } from '../sim/waves.js';
 
 // All meshes here are PLACEHOLDER primitives (see assets/ASSET_REGISTER.csv).
@@ -28,6 +29,14 @@ export function buildStatic() {
     const top = new THREE.Mesh(new THREE.ConeGeometry(o.r * 0.6, 14, 14), mat(0x4f7a3a));
     top.position.set(o.cx, 14, o.cz);
     g.add(top);
+  }
+  // A coloured beacon on each port's pier so ports can be found from far out.
+  for (const p of Object.values(PORTS)) {
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 18, 8), mat(0xeeeeee));
+    mast.position.set(p.beacon.x, 9, p.beacon.z);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 0.3), mat(p.beacon.color));
+    flag.position.set(p.beacon.x + 2.7, 16, p.beacon.z);
+    g.add(mast, flag);
   }
   // Harbour landmark: a simple lighthouse on the north breakwater.
   const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3.2, 22, 12), mat(0xf2f2f2));

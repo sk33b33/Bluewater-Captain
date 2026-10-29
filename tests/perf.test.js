@@ -103,7 +103,7 @@ test('distance to shore: zero on and inside land, grows with distance, circles a
 });
 
 test('baked shore texture: right size, black on land, white in open water, smooth ramp between', () => {
-  const t = bakeShore(staticObstacles(), { size: 128 });
+  const t = bakeShore(staticObstacles(), { originX: -1300, originZ: -1300, extent: 2600, size: 128 });
   assert.equal(t.data.length, 128 * 128 * 4);
   const px = (x, z) => { const i = Math.floor(((x + 1300) / 2600) * 128), j = Math.floor(((z + 1300) / 2600) * 128); return t.data[(j * 128 + i) * 4]; };
   assert.equal(px(-1100, 0), 0, 'inside the west coast');
@@ -147,4 +147,18 @@ test('wake: deterministic and spread across the beam', () => {
   assert.deepEqual([...a.x], [...b.x]);
   const xs = [...a.x].filter((_, i) => a.age[i] < WAKE_LIFETIME);
   assert.ok(Math.max(...xs) - Math.min(...xs) > 1.5 && Math.max(...xs) - Math.min(...xs) <= 3, 'within the beam');
+});
+
+test('baked shore texture equals a brute-force distance field, and a 4 km region bakes quickly', () => {
+  const obs = staticObstacles();
+  const area = { originX: -1300, originZ: -1300, extent: 4600, size: 256, maxDist: 80 };
+  const t0 = Date.now();
+  const t = bakeShore(obs, area);
+  const cell = area.extent / area.size;
+  for (const [i, j] of [[10, 10], [40, 60], [100, 100], [180, 150], [200, 30], [30, 220], [120, 240], [255, 255], [64, 66]]) {
+    const x = area.originX + (i + 0.5) * cell, z = area.originZ + (j + 0.5) * cell;
+    const want = Math.round((Math.min(80, distanceToShore(x, z, obs)) / 80) * 255);
+    assert.equal(t.data[(j * area.size + i) * 4], want, `texel ${i},${j}`);
+  }
+  assert.ok(Date.now() - t0 < 1500, 'baking is cheap');
 });

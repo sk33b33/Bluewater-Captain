@@ -128,3 +128,16 @@ Follow the system boundaries listed above. Specific choices:
 - **Performance tooling:** `src/sim/perf.js` has frame statistics (fps, p95, p99, 1% low), the auto-quality governor and the benchmark recommendation. The in-game overlay and benchmark use them.
 - **Budget (unmeasured on real hardware):** target 30 fps minimum and 60 fps desired on a GTX 770-class GPU at 1080p; Low is designed to render at 0.6x resolution with no foam or wake to give weak cards the best chance.
 - **Tests:** unit tests for all of the above plus `tests/e2e/weather.cjs`.
+
+
+---
+
+# Stage 6 Update: region, ports, chart and routes
+
+- **World:** `src/sim/world.js` defines the region (`REGION`), edge handling and all obstacles. Ports live in `src/data/ports.js` (berths, start poses, fairway markers, inbound waypoints, slow zones, vessel limits, beacons). The chart (`src/data/charts.js`) is a graph of markers and legs.
+- **Routes:** `src/sim/routes.js` builds the graph with measured clearances, finds simple paths (shortest plus distinct alternatives, bounded detour, never through another port), converts a path to waypoints, validates hand-built paths, estimates time and sets deadlines. `planMission` applies a route to a copy of a planned mission.
+- **Missions:** planned missions name `fromPort` and `toPort`; start pose, berth, names, default route and deadline are derived at load.
+- **UI:** `src/ui/chart.js` draws the chart on a 2D canvas (projection and marker picking are pure and tested) and handles the route-building controls. Game canvas styles are scoped to `#game`.
+- **Rendering:** the shore-distance texture covers the region at 1024 x 1024 (baked only near obstacles); the water mesh follows the camera, snapped to its grid.
+- **Scale:** about 25 obstacles and a few dozen scenery boxes; no streaming. Collision stays O(obstacles x hull circles) per tick.
+- **Tests:** `tests/routes.test.js` (geometry, graph, planner, limits, bonus, scripted captain on every route and vessel) and `tests/e2e/chart.cjs`.

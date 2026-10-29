@@ -1,37 +1,33 @@
 # Project Status
 
 ## Current stage
-Stage 5 — Water, waves, and weather. **Implemented; awaiting your hands-on testing and approval (stage gate).** Stages 1 to 4 remain open for tuning feedback.
+Stage 6 — Multiple ports and route planning. **Implemented; awaiting your hands-on testing and approval (stage gate).** Stages 1 to 5 remain open for tuning feedback.
 
-## What was built (Stage 5)
-- **Weather presets** (Calm, Fresh breeze, Moderate sea, Rough sea, Fog bank). Each mission has one: training and exams are mostly calm, Supply Run is a fresh breeze, Heavy Gear Haul and the Skipper exam are a moderate sea, and Island Produce Return runs in fog. The briefing shows the forecast, what the sea does to the chosen vessel, and a tip.
-- **Wind** now gusts and veers; the HUD shows wind speed and direction, sea height and, in fog, visibility.
-- **Sea effect on handling:** waves slow the boat and blunt steering, scaled by wave height against hull length. A skiff loses most, a passenger craft least; calm water costs nothing. Deadlines grow with the vessel and the sea. The fleet screen has a new "speed lost in a rough sea" bar.
-- **Water:** four directional waves raised by the wind, crest whitecaps in bigger seas, shoreline foam and shallow-water tint, a boat wake, sky/light/fog that follow cloud and visibility.
-- **Graphics quality** in Settings: Auto, Low, Medium, High. Auto starts on Medium and lowers itself if the game runs slowly (with a message). Presets change render resolution, water density, wave count, foam and wake.
-- **Performance tools:** an optional FPS overlay (fps, 1% low, frame ms, draw calls, preset) and **Run benchmark** (Settings, from the mission board): measures Low, Medium and High in a rough sea in about 20 seconds and recommends one.
+## What was built (Stage 6)
+- **Bluewater Bay:** the world grew from one 2 km cell to a 4 x 4 km region with four ports: Bluewater Harbor (west), Pine Isle Landing, Cape Quay (east coast) and Southgate Marina (south coast), plus islands, Anvil Reef, Tern Island, Long Spit and the Seal Rocks. Each port has a coloured beacon on its pier. The region edge turns you back.
+- **Chart screen** (Board > Chart, or "Plan route on the chart" in a job briefing): a map with land, ports, markers, charted legs, and your route in gold.
+- **Route planning:** for each job the chart suggests the shortest route and real alternatives. You can pick one or build your own by adding legs from a list or by clicking markers on the map. Distance, estimated time, deadline and hazards are shown, and an unfinished route cannot be used.
+- **The planned route is the mission:** gate buoys, objectives, distance-to-go on the HUD, the deadline (longer routes get longer deadlines), and the results screen all follow the route you chose.
+- **Port approach limits:** each port has a slow zone (10 to 14 kn) with a HUD readout and a warning; going over costs Navigation points and the results explain it. Each port also has a maximum vessel length (Southgate Marina takes up to 12 m).
+- **Nine contracts** across all four ports. Far jobs need reputation 5 to 10; some need a specific vessel; arriving well inside the deadline pays up to +15% credits.
+- **The Seal Rocks gap:** a deliberate narrow shortcut (about 30 m wide) on the way to Cape Quay.
 
 ## Verified (cloud container, headless Chromium with software rendering)
-- `npm test`: 131/131 pass. New: weather presets complete and escalating; wind deterministic and inside its gust/veer bounds; wave energy matches the preset and the measured field's height spread matches (within 20%); waves travel downwind and are longer in bigger seas; sea effect ordering across vessels and sea states (calm costs nothing, never uncontrollable); top speed and turning under sea equal the formula; deadlines grow with sea; quality presets descend in cost; frame statistics and percentiles; the auto-quality governor (sustained slowness lowers once, then cools down; stalls and single slow windows are ignored); benchmark recommendation rules; shore distance and the baked texture; wake particles (none when slow, ageing, capacity cap, determinism). A scripted captain still completes every mission with every allowed vessel in that mission's weather.
-- Browser tests (headless Chromium over local HTTP): `weather.cjs` (settings and quality switching, FPS overlay, briefing forecast and sea text, deadline following vessel and sea, weather applied in play, HUD wind/sea/visibility, wake on Medium and off on Low, fog distance, weather reset at the board, benchmark runs all three presets and produces a recommendation, settings persist), plus `vessels.cjs`, `license.cjs`, `mission.cjs`, `touch.cjs`. All five suites passed against the final build (the vessel suite after its deadline expectations were updated for the new weather-scaled deadlines).
-- In software rendering the benchmark measured Low 27 fps, Medium 19 fps and High 10 fps: the presets really do change the cost, but those absolute numbers say nothing about a real GPU.
-- Screenshots of calm, moderate, rough and foggy conditions reviewed by eye.
+- `npm test`: 168/168 pass in about 3 seconds. New: port berths and start poses are clear of obstacles; slow zones; chart markers in open water; every leg's clearance and a hull sweep along every leg for every vessel; gate buoys clear of land; route search (every port pair is connected, busy pairs have alternatives, shortest first, bounded detour, never through another port); whole-trip route length; waypoints; narrow-passage reporting and vessel passability; deadlines and time estimates; hand-built route validation; `planMission`; speed-limit counting, scoring and warnings; early-arrival bonus; reputation and port-size access rules; chart projection and marker picking; the scripted captain on **every suggested route with every allowed vessel (37 combinations)**, all on time and with score at least 60.
+- Browser tests: new `chart.cjs` (reputation lock, chart view, briefing route, planning, suggested and hand-built routes by list and by clicking the map, confirm, sailing the planned route, HUD distance-to-go and slow-zone readout and warning, penalty explained in the results, route named in the results, vessel limits at the marina, region edge) plus the earlier `weather`, `vessels`, `license`, `mission` and `touch` suites, which were updated for the larger board. All six suites passed against the final build.
+- Screenshots of the chart on desktop and a 390 px phone, Cape Quay docking and the south coast reviewed by eye. A real bug found this way (the chart canvas inherited the game canvas's full-screen style) was fixed.
 
 ## NOT verified
-- **Frame rate on any real GPU, including your GTX 770.** The presets were chosen to be gentle on old cards (Low renders at 0.6x resolution with no foam or wake), but this is a guess until you run the benchmark. This is the most important open item.
-- How the sea effect *feels* by hand: the constants (speed loss 18% and steering loss 15% per unit of severity, calm threshold 0.3), the gust sizes and the wave heights are my estimates.
-- Phone behaviour of the new settings, benchmark and bigger waves; Firefox/Safari; the Auto governor on real hardware (only its logic is unit-tested, and it behaves sensibly in software rendering).
-- The Stage 5 manual checklist has not been run by a human.
+- **Frame rate with the larger world on real GPUs** (more land and water to draw). Static scenery is a few dozen boxes, so I expect little change, but I have not measured it. Run the Stage 5 benchmark again.
+- **How the long routes feel to play.** Cape jobs take 6 to 10 minutes. Deadlines, rewards, slow-zone strictness and the +15% bonus are my estimates.
+- Whether clicking markers on the chart feels good with a mouse or a finger (verified with synthetic clicks and taps only).
+- Real phone behaviour of the chart; Firefox/Safari.
+- The Stage 6 manual checklist has not been run by a human.
 
 ## Next action (needs the user)
-1. Open the game, go to the mission board, **Settings, tick the performance overlay and run the benchmark**, and send me the three rows it shows (and your GPU if you know it).
-2. Play a few missions in different weather and tell me whether the sea effect is too harsh or too mild.
-3. Then approve Stage 6 (multiple ports and route planning) or request tuning.
+Open a long contract (for example Cape Quay Parcel Run once you have reputation 5), plan a route on the chart, sail it, and tell me whether the chart is clear, the distances and deadlines feel right, and whether the slow zones are annoying or fair. Then approve Stage 7 (larger commercial vessels) or request tuning.
 
 ## Stage completion log
 - Stage 0: Done 2026-10-26 (engine changed to browser per D-005).
-- Stage 1: Implemented 2026-10-26; touch controls added after user test; gate not formally passed.
-- Stage 2: Implemented 2026-10-29; gate not formally passed.
-- Stage 3: Implemented 2026-10-29; gate not formally passed.
-- Stage 4: Implemented 2026-10-29; gate not formally passed.
-- Stage 5: Implemented 2026-10-29; gate not yet passed.
+- Stages 1 to 5: Implemented 2026-10-26 to 2026-10-29; gates not formally passed.
+- Stage 6: Implemented 2026-10-29; gate not yet passed.

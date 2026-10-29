@@ -3,7 +3,7 @@
 import { createVesselState, stepVessel } from '../../src/sim/vessel.js';
 import { staticObstacles, resolveCollisions } from '../../src/sim/world.js';
 import { BERTHS } from '../../src/data/missions.js';
-import { createRun, stepRun, applyImpact } from '../../src/sim/mission.js';
+import { createRun, stepRun, applyImpact, PORT_ZONES, zoneAt } from '../../src/sim/mission.js';
 import { windVector } from '../../src/sim/wind.js';
 import { windAt, seaEffect } from '../../src/sim/weather.js';
 import { getWeather } from '../../src/data/weather.js';
@@ -34,6 +34,8 @@ export function autopilot(mission, vessel, { weather = getWeather(mission.weathe
       to = mission.waypoints[idx];
       vt = cruise;
     }
+    const zone = zoneAt(s, PORT_ZONES);
+    if (zone) vt = Math.min(vt, zone.limit * 0.9); // keep to the port speed limit
     const sx = to.x - from.x, sz = to.z - from.z;
     const segLen = Math.hypot(sx, sz) || 1;
     const t = Math.max(0, Math.min(1, ((s.x - from.x) * sx + (s.z - from.z) * sz) / (segLen * segLen)));

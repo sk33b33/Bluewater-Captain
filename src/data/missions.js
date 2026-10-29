@@ -2,13 +2,14 @@
 // Heading 0 = north, clockwise; a berth's heading is the pier's long axis (docking accepts either direction).
 // kind: training (open to all) | contract (needs a license) | exam (earns a license).
 // vesselClasses: which classes may be used; the player picks among those their licenses permit.
+// planned: true means fromPort/toPort name ports and the player plans the route on the chart; start, dock,
+// waypoints and deadline are filled in below from the default (shortest) route. minReputation gates far jobs.
 // weather: id from data/weather.js. Deadlines are for the skiff in calm weather and scale with vessel and sea.
 import { ROUTE, SPAWN } from '../sim/world.js';
+import { BERTHS, PORTS } from './ports.js';
+import { shortestRoute } from '../sim/routes.js';
 
-export const BERTHS = {
-  harborN: { name: 'Harbor Pier north berth', cx: -740, cz: 137.5, heading: Math.PI / 2, halfLength: 9, halfWidth: 4.5 },
-  pine: { name: 'Pine Isle Landing berth', cx: 385, cz: 262.5, heading: Math.PI / 2, halfLength: 9, halfWidth: 4.5 },
-};
+export { BERTHS };
 
 const ALL = ['small-motorboat', 'workboat', 'coastal-passenger'];
 
@@ -23,98 +24,112 @@ const CIRCUIT = [
 ];
 const CIRCUIT_START = { x: -720, z: 60, heading: Math.PI / 2 };
 
-const TO_PINE = [
+// The Coastal Skipper exam is a fixed course (exams are not route-planning exercises).
+const EXAM_TO_PINE = [
   { name: 'Harbor exit', x: -600, z: 50, radius: 30 },
   { name: 'Open water', x: -100, z: 150, radius: 35 },
   { name: 'Landing approach', x: 290, z: 275, radius: 30 },
-];
-const TO_HARBOR = [
-  { name: 'Clear the landing', x: 300, z: 285, radius: 30 },
-  { name: 'Open water', x: -100, z: 150, radius: 35 },
-  { name: 'Harbor mouth', x: -640, z: 50, radius: 30 },
-  { name: 'Inner basin', x: -690, z: 135, radius: 25, spread: 8 },
 ];
 
 export const MISSIONS = [
   {
     id: 'supply-run',
-    kind: 'contract',
+    kind: 'contract', planned: true, fromPort: 'harbor', toPort: 'pine',
     license: 'small-craft-permit',
     vesselClasses: ALL,
     title: 'Pine Isle Supply Run',
     summary: 'Carry harbor supplies to the landing on Pine Isle and tie up at the pier. Any vessel you are licensed for will do.',
-    from: 'Bluewater Harbor',
-    to: 'Pine Isle Landing',
     cargo: 'Harbor supplies (12 crates)',
-    deadline: 210,
-    reward: 600,
-    rep: 5,
-    xp: 100,
-    risk: 'Low',
+    reward: 600, rep: 5, xp: 100, risk: 'Low',
     weather: 'breezy',
-    start: { x: -740, z: 137.5, heading: Math.PI / 2 },
-    waypoints: TO_PINE,
-    dock: 'pine',
   },
   {
     id: 'return-run',
-    kind: 'contract',
+    kind: 'contract', planned: true, fromPort: 'pine', toPort: 'harbor',
     license: 'small-craft-permit',
     vesselClasses: ALL,
     title: 'Island Produce Return',
-    summary: 'Pick up island produce at Pine Isle and bring it back to the Harbor Pier. Any vessel you are licensed for will do.',
-    from: 'Pine Isle Landing',
-    to: 'Bluewater Harbor',
+    summary: 'Pick up island produce at Pine Isle and bring it back to the Harbor Pier, with fog about. Any vessel you are licensed for will do.',
     cargo: 'Island produce (8 crates)',
-    deadline: 210,
-    reward: 650,
-    rep: 5,
-    xp: 100,
-    risk: 'Low',
+    reward: 650, rep: 5, xp: 100, risk: 'Low',
     weather: 'foggy',
-    start: { x: 385, z: 262.5, heading: (3 * Math.PI) / 2 },
-    waypoints: TO_HARBOR,
-    dock: 'harborN',
   },
   {
     id: 'workboat-haul',
-    kind: 'contract',
+    kind: 'contract', planned: true, fromPort: 'harbor', toPort: 'pine',
     license: 'small-craft-permit',
     vesselClasses: ['workboat'],
     title: 'Heavy Gear Haul',
     summary: 'Move a pallet of heavy harbor gear to Pine Isle. Too much for a skiff: this job needs a workboat.',
-    from: 'Bluewater Harbor',
-    to: 'Pine Isle Landing',
     cargo: 'Heavy gear (4 t)',
-    deadline: 200,
-    reward: 800,
-    rep: 6,
-    xp: 120,
-    risk: 'Medium',
+    reward: 800, rep: 6, xp: 120, risk: 'Medium',
     weather: 'choppy',
-    start: { x: -740, z: 137.5, heading: Math.PI / 2 },
-    waypoints: TO_PINE,
-    dock: 'pine',
   },
   {
     id: 'passenger-shuttle',
-    kind: 'contract',
+    kind: 'contract', planned: true, fromPort: 'pine', toPort: 'harbor',
     license: 'small-craft-permit',
     vesselClasses: ['coastal-passenger'],
     title: 'Pine Isle Passenger Shuttle',
     summary: 'Bring 24 passengers back from Pine Isle to the Harbor Pier. A passenger craft is required, and passengers expect a careful docking.',
-    from: 'Pine Isle Landing',
-    to: 'Bluewater Harbor',
     cargo: 'Passengers (24)',
-    deadline: 200,
-    reward: 900,
-    rep: 7,
-    xp: 140,
-    risk: 'Medium',
+    reward: 900, rep: 7, xp: 140, risk: 'Medium',
     weather: 'breezy',
-    start: { x: 385, z: 262.5, heading: (3 * Math.PI) / 2 },
-    waypoints: TO_HARBOR,
-    dock: 'harborN',
+  },
+  {
+    id: 'cape-parcels',
+    kind: 'contract', planned: true, fromPort: 'harbor', toPort: 'cape',
+    license: 'small-craft-permit', minReputation: 5,
+    vesselClasses: ALL,
+    title: 'Cape Quay Parcel Run',
+    summary: 'Take parcels across the bay to the commercial quay on the east coast. A long passage: choose your route on the chart, and watch for the narrow gap between the Seal Rocks.',
+    cargo: 'Parcels and mail (30 bags)',
+    reward: 1300, rep: 8, xp: 160, risk: 'Medium',
+    weather: 'breezy',
+  },
+  {
+    id: 'island-hop',
+    kind: 'contract', planned: true, fromPort: 'pine', toPort: 'southgate',
+    license: 'small-craft-permit', minReputation: 5,
+    vesselClasses: ['small-motorboat', 'workboat'],
+    title: 'Island Hop to Southgate',
+    summary: 'Run mail from Pine Isle down the west side of the bay to the marina on the south coast. The marina has a slow zone and takes vessels up to 12 m only.',
+    cargo: 'Island mail (10 bags)',
+    reward: 1100, rep: 7, xp: 130, risk: 'Medium',
+    weather: 'calm',
+  },
+  {
+    id: 'marina-mail',
+    kind: 'contract', planned: true, fromPort: 'southgate', toPort: 'harbor',
+    license: 'small-craft-permit', minReputation: 5,
+    vesselClasses: ['small-motorboat', 'workboat'],
+    title: 'Marina Mail Run',
+    summary: 'Bring the marina mail back up the coast to Bluewater Harbor.',
+    cargo: 'Marina mail (14 bags)',
+    reward: 1200, rep: 7, xp: 130, risk: 'Low',
+    weather: 'breezy',
+  },
+  {
+    id: 'marina-fuel',
+    kind: 'contract', planned: true, fromPort: 'harbor', toPort: 'southgate',
+    license: 'small-craft-permit', minReputation: 8,
+    vesselClasses: ['workboat'],
+    title: 'Marina Fuel Delivery',
+    summary: 'Deliver fuel drums to Southgate Marina. Heavy cargo for a workboat, and the marina slow zone is strictly enforced.',
+    cargo: 'Fuel drums (12 t)',
+    reward: 1500, rep: 9, xp: 170, risk: 'Medium',
+    weather: 'choppy',
+  },
+  {
+    id: 'quay-passengers',
+    kind: 'contract', planned: true, fromPort: 'cape', toPort: 'pine',
+    license: 'small-craft-permit', minReputation: 10,
+    vesselClasses: ['coastal-passenger'],
+    title: 'Quay to Island Passenger Run',
+    summary: 'Carry 30 passengers from Cape Quay across the bay to Pine Isle. Only a passenger craft will do, and passengers expect a smooth ride.',
+    cargo: 'Passengers (30)',
+    reward: 1600, rep: 10, xp: 190, risk: 'Medium',
+    weather: 'calm',
   },
   {
     id: 'training-loop',
@@ -233,10 +248,27 @@ export const MISSIONS = [
     risk: 'Exam',
     weather: 'choppy',
     start: CIRCUIT_START,
-    waypoints: TO_PINE,
+    waypoints: EXAM_TO_PINE,
     dock: 'pine',
   },
 ];
+
+// Fill in what a planned mission derives from its ports: names, start pose, berth and the default
+// (shortest) route with its deadline. The player may replace the route on the chart (see sim/routes.js planMission).
+for (const m of MISSIONS) {
+  if (!m.planned) continue;
+  const from = PORTS[m.fromPort], to = PORTS[m.toPort];
+  const route = shortestRoute(m.fromPort, m.toPort);
+  m.from = from.name;
+  m.to = to.name;
+  m.start = from.start;
+  m.dock = to.berth;
+  m.waypoints = route.waypoints;
+  m.deadline = route.deadline;
+  m.routeName = route.name;
+  m.routeId = route.id;
+  m.routeLength = route.length;
+}
 
 export function getMission(id) {
   return MISSIONS.find((m) => m.id === id) || null;

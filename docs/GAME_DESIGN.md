@@ -119,3 +119,12 @@ No multiplayer, procedural planet, economy simulation, fully simulated ship inte
 - **Why small boats suffer most:** the effect compares wave height with hull length. The same formula covers every vessel, so future ships behave sensibly without special-casing.
 - **Visibility:** fog shortens how far you can see; the compass arrow and distance readout stay available, and the destination beam fades with distance like everything else.
 - **Quality:** Auto, Low, Medium, High. The game aims to stay playable on old hardware first and look good second.
+
+
+## Stage 6 implementation notes: the bay, ports and route planning
+- **Bluewater Bay** is a 4 km x 4 km box (2 x 2 cells) with a soft edge: a warning near the edge and a return to the last safe point just beyond it. The earlier 8 km vision is still the long-term target; this is the first connected region.
+- **Ports:** Bluewater Harbor (home, 20 m vessels), Pine Isle Landing (16 m), Cape Quay (commercial quay, 30 m, 12 kn slow zone) and Southgate Marina (12 m, 10 kn slow zone). Each has a pier, a berth, a slow zone and a coloured beacon.
+- **The chart:** markers and the legs between them. A route is a path through markers; the harbor approach at each end is fixed. Suggested routes are the shortest plus alternatives within 35% of it. You can build your own.
+- **Route choice is a trade-off:** a longer route has a longer deadline, so time alone never forces the short way. The short way to Cape Quay is a 30 m gap between rocks; the wide ways cost 4 to 5% more distance. Arriving early pays up to +15%.
+- **Port approach limits:** slow zones around every berth and a vessel length limit per port. Breaking a limit costs Navigation points and the results say why.
+- **Progression:** short jobs are open to permit holders; far jobs need reputation (5 to 10) and some need a specific vessel. Reputation comes from finished jobs.

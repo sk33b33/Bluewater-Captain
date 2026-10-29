@@ -112,3 +112,28 @@ If you do not want to grind the Coastal Skipper, ask for a test profile with bot
 | 13 | Dock in a gusty breeze | Wind pushes you around while slow; still possible | |
 | 14 | Fleet screen | New "Speed lost in a rough sea" bar; skiff worst, passenger craft best | |
 | 15 | Phone: settings, overlay, a mission in rough weather | Readable; frame rate acceptable on Low | |
+
+
+# Stage 6 Manual Test Checklist
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Board > Chart | A map of the bay with four ports, markers (letters) and legs; port list with slow zones and size limits | |
+| 2 | Board with a low reputation | Far jobs (Cape, Southgate) show Locked and say how much reputation they need | |
+| 3 | Open Pine Isle Supply Run | Briefing shows a route row ("Shortest route: 1.2 km") and a "Plan route on the chart" button | |
+| 4 | Plan route | The chart opens with route options; the chosen route is gold; leg list shows distances | |
+| 5 | Pick a different suggested route | The gold line, distance, deadline and hazards update | |
+| 6 | Cape Quay Parcel Run | The shortest route has a narrow passage (dashed orange leg); the alternative avoids it | |
+| 7 | Build your own route: add legs from the list; click a ringed marker on the map | Route extends; Use this route stays disabled until it reaches Cape Quay | |
+| 8 | Confirm a hand-built route | Briefing says "Custom route" with its distance and a new deadline | |
+| 9 | Depart and sail | Yellow beams follow your route; HUD shows "km to go"; markers are in the order you chose | |
+| 10 | Sail through the Seal Rocks gap (if you chose it) | Possible but tight; the Coastal Cat is hardest | |
+| 11 | Enter a port at speed | "Slow zone" readout turns red and a warning names the limit; the results mention the penalty | |
+| 12 | Arrive well early | Results show an early-arrival bonus in credits | |
+| 13 | Results screen | Names the route and its length | |
+| 14 | Dock at Cape Quay, Southgate Marina and Pine Isle | Each has a green berth; Southgate's runs north-south | |
+| 15 | Island Hop to Southgate | The vessel list has no passenger craft (the marina takes up to 12 m) | |
+| 16 | Sail to the edge of the bay | Warning, then you are returned to your last safe point | |
+| 17 | Ports from far away | Each port's coloured beacon is visible on its pier | |
+| 18 | Phone: chart | The map sits above the controls; markers can be added from the list | |
+| 19 | Run the Stage 5 benchmark again | Frame rates are still acceptable with the bigger world | |
