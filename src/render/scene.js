@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LAND, BREAKWATERS, DOCKS, ISLANDS } from '../sim/world.js';
 import { gateBuoys } from '../data/missions.js';
 import { PORTS } from '../data/ports.js';
@@ -13,11 +14,62 @@ function rectMesh(o, height, color) {
   return m;
 }
 
+// A commercial quay: concrete deck 3 m up, gantry cranes along it (the scale cue: 45 m tall) and container stacks.
+function buildQuay(o) {
+  const g = new THREE.Group();
+  const deck = rectMesh(o, 3.4, 0x8d9296);
+  deck.position.y = 1.4;
+  g.add(deck);
+  const alongX = o.hx >= o.hz; // quay runs east-west, or north-south
+  const length = (alongX ? o.hx : o.hz) * 2;
+  const dir = alongX ? [1, 0] : [0, 1];
+  const side = alongX ? [0, -1] : [-1, 0]; // the water side the ships lie on
+  const half = alongX ? o.hz : o.hx;
+  // cranes: merged into one mesh so they cost one draw call
+  const parts = [];
+  const box = (w, h, d, x, y, z) => { const b = new THREE.BoxGeometry(w, h, d); b.translate(x, y, z); parts.push(b); };
+  const cranes = 3;
+  for (let i = 0; i < cranes; i++) {
+    const t = (i + 0.5) / cranes - 0.5;
+    const cx = o.cx + dir[0] * t * length * 0.75 + side[0] * (half - 2);
+    const cz = o.cz + dir[1] * t * length * 0.75 + side[1] * (half - 2);
+    // legs, portal beam, boom out over the water, cab
+    for (const sx of [-6, 6]) for (const sz of [-4, 4]) box(1.2, 40, 1.2, cx + (alongX ? sx : sz), 21, cz + (alongX ? sz : sx));
+    box(alongX ? 15 : 10, 2.5, alongX ? 10 : 15, cx, 41, cz);
+    box(alongX ? 3 : 55, 2.5, alongX ? 55 : 3, cx + side[0] * 26, 44, cz + side[1] * 26);
+    box(5, 5, 5, cx, 44, cz);
+  }
+  const craneMesh = new THREE.Mesh(mergeGeometries(parts), mat(0xe2a73a));
+  g.add(craneMesh);
+  // container stacks on the land side, instanced: one draw call for all of them
+  const palette = [0xc0392b, 0x2e86c1, 0x27ae60, 0xe67e22, 0x8e44ad, 0xbdc3c7, 0xf1c40f];
+  const stacks = [];
+  const slots = Math.floor(length / 14);
+  for (let i = 0; i < slots; i++) for (let row = 0; row < 2; row++) {
+    const t = (i + 0.5) / slots - 0.5;
+    const tiers = 1 + ((i * 7 + row * 3) % 3);
+    for (let h = 0; h < tiers; h++) {
+      stacks.push({
+        x: o.cx + dir[0] * t * length * 0.9 - side[0] * (half - 14 - row * 12),
+        y: 3.1 + 1.4 + h * 2.7,
+        z: o.cz + dir[1] * t * length * 0.9 - side[1] * (half - 14 - row * 12),
+        c: palette[(i * 5 + row * 2 + h) % palette.length],
+      });
+    }
+  }
+  const boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(alongX ? 12 : 2.6, 2.6, alongX ? 2.6 : 12), mat(0xffffff), stacks.length);
+  const m4 = new THREE.Matrix4();
+  stacks.forEach((p, i) => { m4.makeTranslation(p.x, p.y, p.z); boxes.setMatrixAt(i, m4); boxes.setColorAt(i, new THREE.Color(p.c)); });
+  g.add(boxes);
+  return g;
+}
+
 export function buildStatic() {
   const g = new THREE.Group();
   for (const o of LAND) g.add(rectMesh(o, 6, 0x6f8a52));
   for (const o of BREAKWATERS) g.add(rectMesh(o, 3, 0x8a8f94));
   for (const o of DOCKS) {
+    if (/quay/i.test(o.name)) { g.add(buildQuay(o)); continue; }
     const pier = rectMesh(o, 1.6, 0x8b6b45);
     pier.position.y = 0.5;
     g.add(pier);
@@ -81,6 +133,39 @@ export function buildBoat(v) {
     boom.rotation.z = Math.PI / 2.8;
     boom.position.set(v.beam * 0.3 + 1.2, 5.3, v.length * 0.2);
     g.add(mast, boom);
+  } else if (v.class === 'cargo-ship') {
+    hullWithBow(g, v, 6);
+    const L = v.length, W = v.beam;
+    // four hatch covers forward of the bridge, two deck cranes between them
+    for (let i = 0; i < 4; i++) addBox(g, W * 0.72, 0.9, L * 0.12, 0x6b7a86, 0, 6.4, -L * 0.3 + i * L * 0.15);
+    for (const z of [-L * 0.225, L * 0.075]) {
+      addBox(g, 0.9, 11, 0.9, 0xe2a73a, W * 0.3, 11, z);
+      addBox(g, 0.7, 0.7, 14, 0xe2a73a, W * 0.3, 16, z - 5);
+    }
+    // bridge house and funnel aft
+    addBox(g, W * 0.8, 9, L * 0.1, v.look.cabin, 0, 10.5, L * 0.36);
+    addBox(g, W * 0.86, 0.6, L * 0.115, 0x2c3e50, 0, 15.2, L * 0.36);
+    addBox(g, W * 0.4, 6, L * 0.05, 0xb23a2e, 0, 17, L * 0.42);
+  } else if (v.class === 'container-carrier') {
+    hullWithBow(g, v, 8);
+    const L = v.length, W = v.beam;
+    // container stacks on deck, instanced (one draw call): bays along the ship, rows across it
+    const palette = [0xc0392b, 0x2e86c1, 0x27ae60, 0xe67e22, 0x8e44ad, 0xbdc3c7, 0xf1c40f, 0x16a085];
+    const bays = Math.floor((L * 0.62) / 6.4);
+    const rows = Math.floor((W - 3) / 2.7);
+    const cells = [];
+    for (let b = 0; b < bays; b++) for (let r = 0; r < rows; r++) {
+      const tiers = 3 + ((b * 5 + r * 3) % 3);
+      for (let t = 0; t < tiers; t++) cells.push({ x: (r - (rows - 1) / 2) * 2.7, y: 8.4 + t * 2.7, z: -L * 0.46 + b * 6.4 + 3.2, c: palette[(b * 3 + r * 5 + t) % palette.length] });
+    }
+    const stacks = new THREE.InstancedMesh(new THREE.BoxGeometry(2.5, 2.6, 6.1), mat(0xffffff), cells.length);
+    const m4 = new THREE.Matrix4();
+    cells.forEach((c, i) => { m4.makeTranslation(c.x, c.y, c.z); stacks.setMatrixAt(i, m4); stacks.setColorAt(i, new THREE.Color(c.c)); });
+    g.add(stacks);
+    // bridge house and funnel aft, tall enough to see over the stacks
+    addBox(g, W * 0.74, 14, L * 0.07, v.look.cabin, 0, 15, L * 0.4);
+    addBox(g, W * 0.8, 0.7, L * 0.08, 0x2c3e50, 0, 22.4, L * 0.4);
+    addBox(g, W * 0.3, 7, L * 0.04, 0xc0392b, 0, 25, L * 0.455);
   } else if (v.class === 'coastal-passenger') {
     hullWithBow(g, v, 1.3);
     addBox(g, v.beam * 0.86, 1.7, v.length * 0.6, v.look.cabin, 0, 2.15, v.length * 0.05); // long cabin

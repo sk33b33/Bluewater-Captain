@@ -7,11 +7,12 @@ import { getQuality, AUTO_START, lowerQuality, pixelRatioFor } from './data/qual
 import { createFrameStats, createGovernor, recommendQuality } from './sim/perf.js';
 import { createWake, stepWake, clearWake } from './sim/wake.js';
 import { getVessel, DEFAULT_VESSEL } from './data/vessels.js';
-import { BUOY_RADIUS, staticObstacles, resolveCollisions, edgeStatus } from './sim/world.js';
+import { BUOY_RADIUS, staticObstacles, resolveCollisions, edgeStatus, shoalsFor } from './sim/world.js';
+import { distanceToObstacle } from './sim/shore.js';
 import { MISSIONS, BERTHS, getMission } from './data/missions.js';
 import { LICENSES, getLicense } from './data/licenses.js';
-import { SMALL_CRAFT_QUESTIONS, COASTAL_SKIPPER_QUESTIONS } from './data/quiz.js';
-import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, zoneAt, PORT_ZONES, DOCK } from './sim/mission.js';
+import { SMALL_CRAFT_QUESTIONS, COASTAL_SKIPPER_QUESTIONS, LARGE_VESSEL_QUESTIONS } from './data/quiz.js';
+import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, zoneAt, PORT_ZONES, DOCK, CARGO_ALLOWANCE } from './sim/mission.js';
 import { findRoutes, routeFromPath, nextMarkers, isComplete, validatePath, planMission, estimateSeconds } from './sim/routes.js';
 import { PORTS } from './data/ports.js';
 import { createChart } from './ui/chart.js';
@@ -121,7 +122,7 @@ const touchUi = setupTouchControls(input);
 
 const vessel = createVesselState(MISSIONS[0].start.x, MISSIONS[0].start.z, MISSIONS[0].start.heading);
 let mode = 'menu'; // menu | board | briefing | licenses | quiz | play | paused | settings | result
-const QUIZ_POOLS = { 'small-craft-permit': SMALL_CRAFT_QUESTIONS, 'coastal-skipper': COASTAL_SKIPPER_QUESTIONS };
+const QUIZ_POOLS = { 'small-craft-permit': SMALL_CRAFT_QUESTIONS, 'coastal-skipper': COASTAL_SKIPPER_QUESTIONS, 'large-vessel': LARGE_VESSEL_QUESTIONS };
 let quizLic = null;
 let quizQuestions = [];
 let mission = null;
@@ -131,6 +132,7 @@ let berthGroup = null;
 let obstacles = baseObstacles;
 let selected = null;
 let stuckTime = 0;
+let shoalWarnAt = -99;
 let time = 0;
 let acc = 0;
 let last = performance.now();
@@ -168,7 +170,7 @@ function startMission(m, vessel) {
   run = createRun(m, vessel);
   buoys = buildBuoys(m.waypoints, m.start);
   scene.add(buoys.group);
-  obstacles = [...baseObstacles];
+  obstacles = [...baseObstacles, ...shoalsFor(vp)]; // deep-draft ships also run aground on shoals
   for (const g of buoys.gates) for (const p of g.positions) obstacles.push({ type: 'circle', name: 'Buoy', cx: p.x, cz: p.z, r: BUOY_RADIUS });
   if (m.dock) { berthGroup = buildBerth(BERTHS[m.dock]); scene.add(berthGroup); }
   placeVessel(m.start);
@@ -224,7 +226,7 @@ function showBriefing(m, keepVessel = false) {
   const vessels = usableVessels(profile, m);
   if (!keepVessel || !briefingVessel || !vessels.some((v) => v.id === briefingVessel.id)) briefingVessel = chooseVessel(profile, m);
   ensureRoute(m, briefingVessel);
-  const sailed = m.planned && briefingRoute ? planMission(m, briefingRoute) : m;
+  const sailed = m.planned && briefingRoute ? planMission(m, briefingRoute, briefingVessel) : m;
   menus.showBriefing(m, {
     dockName: m.dock ? BERTHS[m.dock].name : null,
     access: missionAccess(profile, m),
@@ -257,8 +259,8 @@ const chart = createChart({
     if (!planState) return;
     const { mission: m, vessel, path } = planState;
     const v = validatePath(m.fromPort, m.toPort, path, vessel);
-    if (!v.ok || !isComplete(path, m.toPort)) { planState.message = v.reason || 'Finish the route at the destination port first.'; renderChart(); return; }
-    const r = routeFromPath(m.fromPort, m.toPort, path);
+    if (!v.ok || !isComplete(path, m.toPort, vessel)) { planState.message = v.reason || 'Finish the route at the destination port first.'; renderChart(); return; }
+    const r = routeFromPath(m.fromPort, m.toPort, path, vessel);
     const match = suggestedRoutes().find((x) => x.id === r.id);
     briefingRoute = { ...r, name: match ? match.name : 'Custom route', via: match ? match.via : 'your own route', missionId: m.id };
     planState = null;
@@ -278,12 +280,12 @@ function suggestedRoutes() {
 function renderChart() {
   const { mission: m, vessel, path } = planState;
   const routes = suggestedRoutes();
-  const complete = isComplete(path, m.toPort);
+  const complete = isComplete(path, m.toPort, vessel);
   const wx = getWeather(m.weather);
   let summary = null;
   if (complete) {
-    const r = routeFromPath(m.fromPort, m.toPort, path);
-    summary = { length: r.length, seconds: estimateSeconds(r, vessel, wx), deadline: deadlineFor(planMission(m, r), vessel, wx), hazards: r.hazards };
+    const r = routeFromPath(m.fromPort, m.toPort, path, vessel);
+    summary = { length: r.length, seconds: estimateSeconds(r, vessel, wx), deadline: deadlineFor(planMission(m, r, vessel), vessel, wx), hazards: r.hazards };
   }
   const idx = routes.findIndex((r) => r.id === path.join('>'));
   menus.hideAll();
@@ -351,7 +353,7 @@ function depart() {
     if (!paid.ok) { showBriefing(selected); return; }
     saveProfile(storage, profile);
   }
-  startMission(selected.planned && briefingRoute ? planMission(selected, briefingRoute) : selected, briefingVessel);
+  startMission(selected.planned && briefingRoute ? planMission(selected, briefingRoute, briefingVessel) : selected, briefingVessel);
 }
 
 function respawn(reason, manual = false) {
@@ -400,6 +402,8 @@ function handleEvents(events) {
       const wp = mission.waypoints[e.index];
       if (e.last && mission.dock) hud.warn(`Docking: ease into the green berth at ${BERTHS[mission.dock].name}`, 3500);
       else if (!e.last) hud.warn(`Checkpoint: ${wp.name}`, 1500);
+    } else if (e.type === 'strain') {
+      hud.warn('Easy on the helm: the cargo is shifting', 2500);
     } else if (e.type === 'speeding') {
       hud.warn(`Slow down: ${e.zone.name} limit is ${Math.round(e.zone.knots)} knots`, 2500);
     } else if (e.type === 'damage') {
@@ -604,6 +608,11 @@ function tick(dt) {
   } else {
     stuckTime = 0;
   }
+  const shoals = shoalsFor(vp);
+  if (shoals.length && time - shoalWarnAt > 8) {
+    const reach = vp.beam * 0.5 + 35; // warn when the hull is within about 35 m of the edge of the shallows
+    if (shoals.some((sh) => distanceToObstacle(vessel.x, vessel.z, sh) < reach)) { shoalWarnAt = time; hud.warn('Shallow water close: keep to the dredged channel', 3000); }
+  }
   const edge = edgeStatus(vessel);
   if (edge === 'warn') hud.warn('Leaving the chart area: turn back', 600);
   if (edge === 'out') respawn('Out of bounds: returned to last safe point');
@@ -718,7 +727,7 @@ function updateHud() {
     tx = berth.cx; tz = berth.cz;
     const dist = Math.hypot(tx - vessel.x, tz - vessel.z);
     objective = `Dock at ${berth.name}  ${Math.round(dist)} m`;
-    const d = evaluateDock(vessel, berth);
+    const d = evaluateDock(vessel, berth, run.vesselLength);
     const holding = d.inside && d.speedOk && d.angleOk;
     if (berthGroup) berthGroup.userData.setState(holding ? 'hold' : dist < 45 ? 'near' : 'idle');
     dock = { name: berth.name, inside: d.inside, speedOk: d.speedOk, angleOk: d.angleOk, hint: dockHint(d, dist), hold: run.dockHold / DOCK.holdSeconds };
@@ -738,6 +747,7 @@ function updateHud() {
     limit: `deadline ${formatTime(run.deadline)}`,
     wind: windText(),
     zone: zoneInfo(),
+    cargo: run.cargoLimit ? { text: `Cargo ${Math.round(Math.max(0, 1 - run.roughTime / CARGO_ALLOWANCE) * 100)}%`, over: run.strained } : null,
     late: run.time > run.deadline,
     hull: run.integrity,
     bearingRel: (angleDiff(bearing, vessel.heading) * 180) / Math.PI,

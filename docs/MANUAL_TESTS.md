@@ -137,3 +137,30 @@ If you do not want to grind the Coastal Skipper, ask for a test profile with bot
 | 17 | Ports from far away | Each port's coloured beacon is visible on its pier | |
 | 18 | Phone: chart | The map sits above the controls; markers can be added from the list | |
 | 19 | Run the Stage 5 benchmark again | Frame rates are still acceptable with the bigger world | |
+
+
+# Stage 7 Manual Test Checklist
+
+Ask for a test profile with the Large Vessel Endorsement if you do not want to earn it.
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Board > Fleet | Five vessels; a size chart at the top draws all of them to scale with a 100 m reference | |
+| 2 | Compare the ships' stats with the skiff | Stopping, turning and pick-up are many times larger; "speed lost in a rough sea" is 0% | |
+| 3 | Open a harbor contract with a ship selected | The vessel list shows only the small craft: ships do not fit the harbor | |
+| 4 | Board with a low reputation | Container jobs say "Needs reputation 45"; freighter jobs 30; no endorsement says which license | |
+| 5 | Freighter Sea Trials | Opens once you hold the Skipper and have reputation 30; the freighter starts at the Cape deep-water berth | |
+| 6 | Sail out the dredged channel | The channel is darker water between pale shoal water on both sides; cranes and containers on the quay | |
+| 7 | Drift toward the pale water | "Shallow water close" warning; if you run onto it the hull is damaged | |
+| 8 | Turn hard at speed with the container carrier | HUD cargo readout turns red ("shifting"); a warning; the Cargo score suffers | |
+| 9 | Stop the freighter | Start slowing hundreds of metres early; reverse thrust is weak | |
+| 10 | Dock the freighter at Cape Terminal / Driftwood | The green berth is 220 m long; stop with the ship fully inside, near the middle | |
+| 11 | Plan a route with a ship | The chart shows shoals in pale green; legs closed to a ship are dotted red; a ship's route options stay in the channel | |
+| 12 | Same job with two routes | Both routes are possible; the second is a little longer | |
+| 13 | Cape job with the skiff | It still uses the old pier and berth, not the terminal | |
+| 14 | Driftwood Terminal with the skiff | Refused: the terminal takes vessels of 30 m and up | |
+| 15 | Results of a cargo job | Five lines including Cargo, with a reason | |
+| 16 | Run the Large Vessel exam | Written test; fee 800; freighter exam allows at most one scrape | |
+| 17 | Wind with the container carrier at the berth | The stack drifts you; you still need to hold still inside the berth | |
+| 18 | Phone: a ship job | Camera far enough back to see the ship; controls usable | |
+| 19 | Run the Stage 5 benchmark again | Frame rates still acceptable with ships and cranes | |

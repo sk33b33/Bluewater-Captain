@@ -42,6 +42,30 @@ export const VESSELS = [
     hullRadius: 2.5, hullStrength: 0.8, windage: 0.07, deadlineFactor: 1.1, cameraDistance: 28,
     look: { hull: 0xf2f2f2, stripe: 0x1f6fb2, cabin: 0x9fd3f5, roof: 0xf2f2f2 },
   },
+  {
+    id: 'cargo-ship',
+    class: 'cargo-ship',
+    name: 'Coastal Freighter',
+    blurb: 'A 90 m general cargo ship. It takes a minute to get moving, minutes to stop, and a wide arc to turn. Deep draft keeps it in the dredged channels.',
+    length: 90, beam: 15, draft: 5.5, massTonnes: 4200,
+    maxSpeed: 10, maxReverse: 2.5, thrustAccel: 0.32, reverseAccel: 0.18, linearResistance: 0.012,
+    maxYawRate: 0.14, yawRefSpeed: 3.0, yawResponse: 0.35, rudderResponse: 0.8, throttleResponse: 0.35, lateralDamping: 0.8,
+    hullRadius: 7.5, hullStrength: 0.5, windage: 0.05, deadlineFactor: 1.3, cameraDistance: 95,
+    cargoLimit: 0.55, // m/s^2 of sideways acceleration cargo can take before it shifts
+    look: { hull: 0x2d3e50, stripe: 0xb23a2e, cabin: 0xf2f2f2, roof: 0xf2f2f2 },
+  },
+  {
+    id: 'container-carrier',
+    class: 'container-carrier',
+    name: 'Feeder Carrier',
+    blurb: 'A 140 m container feeder, the biggest vessel in the bay. Enormous inertia, a very wide turning circle, tall stacks that catch the wind, and cargo that shifts if you turn hard.',
+    length: 140, beam: 22, draft: 8, massTonnes: 12500,
+    maxSpeed: 11.5, maxReverse: 2.5, thrustAccel: 0.30, reverseAccel: 0.14, linearResistance: 0.01,
+    maxYawRate: 0.10, yawRefSpeed: 3.5, yawResponse: 0.25, rudderResponse: 0.6, throttleResponse: 0.25, lateralDamping: 0.7,
+    hullRadius: 11, hullStrength: 0.45, windage: 0.09, deadlineFactor: 1.4, cameraDistance: 140,
+    cargoLimit: 0.4,
+    look: { hull: 0x1d3f66, stripe: 0xc0392b, cabin: 0xf2f2f2, roof: 0xf2f2f2 },
+  },
 ];
 
 export const DEFAULT_VESSEL = 'small-motorboat';

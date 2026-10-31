@@ -6,7 +6,8 @@
 // waypoints and deadline are filled in below from the default (shortest) route. minReputation gates far jobs.
 // weather: id from data/weather.js. Deadlines are for the skiff in calm weather and scale with vessel and sea.
 import { ROUTE, SPAWN } from '../sim/world.js';
-import { BERTHS, PORTS } from './ports.js';
+import { BERTHS, PORTS, portView } from './ports.js';
+import { VESSELS } from './vessels.js';
 import { shortestRoute } from '../sim/routes.js';
 
 export { BERTHS };
@@ -30,6 +31,18 @@ const EXAM_TO_PINE = [
   { name: 'Open water', x: -100, z: 150, radius: 35 },
   { name: 'Landing approach', x: 290, z: 275, radius: 30 },
 ];
+
+
+// Trials course for the deep-water terminal: out the channel, round a buoy in open water, back in and dock.
+const TERMINAL_CIRCUIT = [
+  { name: 'Terminal approach', x: 2150, z: 488, radius: 50, spread: 45 },
+  { name: 'Channel west', x: 1500, z: 540, radius: 50, spread: 45 },
+  { name: 'Trial buoy', x: 1250, z: 800, radius: 50, spread: 45 },
+  { name: 'Channel west return', x: 1520, z: 500, radius: 50, spread: 45 },
+  { name: 'Terminal approach return', x: 2150, z: 488, radius: 50, spread: 45 },
+  { name: 'Terminal channel', x: 2330, z: 488, radius: 45, spread: 45 },
+];
+const TERMINAL_START = { x: 2570, z: 488, heading: (3 * Math.PI) / 2 };
 
 export const MISSIONS = [
   {
@@ -132,6 +145,50 @@ export const MISSIONS = [
     weather: 'calm',
   },
   {
+    id: 'coaster-cargo',
+    kind: 'contract', planned: true, fromPort: 'cape', toPort: 'driftwood',
+    license: 'large-vessel', minReputation: 30, cargoStrain: true,
+    vesselClasses: ['cargo-ship'],
+    title: 'Coaster Cargo to Driftwood',
+    summary: 'Carry 3,000 tonnes of general cargo from Cape Terminal down the dredged channel to Driftwood Terminal. Big ship, big margins: start slowing early, keep to the channel and turn gently so the cargo does not shift.',
+    cargo: 'General cargo (3,000 t)',
+    reward: 3200, rep: 12, xp: 300, risk: 'High',
+    weather: 'breezy',
+  },
+  {
+    id: 'bulk-return',
+    kind: 'contract', planned: true, fromPort: 'driftwood', toPort: 'cape',
+    license: 'large-vessel', minReputation: 30, cargoStrain: true,
+    vesselClasses: ['cargo-ship'],
+    title: 'Bulk Return to Cape',
+    summary: 'Bring a load of bulk cargo back from Driftwood Terminal to Cape Terminal.',
+    cargo: 'Bulk cargo (3,400 t)',
+    reward: 3300, rep: 12, xp: 300, risk: 'High',
+    weather: 'calm',
+  },
+  {
+    id: 'container-feeder',
+    kind: 'contract', planned: true, fromPort: 'cape', toPort: 'driftwood',
+    license: 'large-vessel', minReputation: 45, cargoStrain: true,
+    vesselClasses: ['container-carrier'],
+    title: 'Container Feeder Run',
+    summary: 'Move 240 containers from Cape Terminal to Driftwood Terminal. The biggest vessel in the bay: huge inertia, a very wide turning circle, and stacks that catch the wind.',
+    cargo: 'Containers (240 TEU)',
+    reward: 5200, rep: 15, xp: 450, risk: 'High',
+    weather: 'breezy',
+  },
+  {
+    id: 'container-return',
+    kind: 'contract', planned: true, fromPort: 'driftwood', toPort: 'cape',
+    license: 'large-vessel', minReputation: 45, cargoStrain: true,
+    vesselClasses: ['container-carrier'],
+    title: 'Container Return to Cape',
+    summary: 'Carry 220 containers back from Driftwood Terminal to Cape Terminal.',
+    cargo: 'Containers (220 TEU)',
+    reward: 5400, rep: 15, xp: 450, risk: 'High',
+    weather: 'choppy',
+  },
+  {
     id: 'training-loop',
     kind: 'training',
     license: null,
@@ -212,6 +269,30 @@ export const MISSIONS = [
     dock: 'harborN',
   },
   {
+    id: 'cargo-trials',
+    kind: 'training', license: null,
+    vesselClasses: ['cargo-ship'],
+    title: 'Freighter Sea Trials',
+    summary: 'Learn how a 90 m freighter handles: out the dredged channel, round a buoy, back in and alongside Cape Terminal. Start slowing early.',
+    from: 'Cape Terminal', to: 'Cape Terminal berth',
+    cargo: 'None (training)',
+    deadline: 420, reward: 600, rep: 2, xp: 80, risk: 'None',
+    weather: 'calm',
+    start: TERMINAL_START, waypoints: TERMINAL_CIRCUIT, dock: 'capeDeep',
+  },
+  {
+    id: 'container-trials',
+    kind: 'training', license: null,
+    vesselClasses: ['container-carrier'],
+    title: 'Feeder Carrier Sea Trials',
+    summary: 'The biggest vessel in the bay: out the dredged channel, round a buoy in open water, back in and alongside the terminal. Use gentle rudder and plan every turn.',
+    from: 'Cape Terminal', to: 'Cape Terminal berth',
+    cargo: 'None (training)',
+    deadline: 460, reward: 700, rep: 2, xp: 80, risk: 'None',
+    weather: 'calm',
+    start: TERMINAL_START, waypoints: TERMINAL_CIRCUIT, dock: 'capeDeep',
+  },
+  {
     id: 'small-craft-exam',
     kind: 'exam',
     license: 'small-craft-permit',
@@ -251,16 +332,30 @@ export const MISSIONS = [
     waypoints: EXAM_TO_PINE,
     dock: 'pine',
   },
+  {
+    id: 'large-vessel-exam',
+    kind: 'exam', planned: true, locked: true, routeVessel: 'cargo-ship', fromPort: 'cape', toPort: 'driftwood',
+    license: 'large-vessel',
+    vesselClasses: ['cargo-ship'], cargoStrain: true,
+    title: 'Large Vessel Endorsement: Practical Exam',
+    summary: 'Take the freighter from Cape Terminal down the dredged channel to Driftwood Terminal and berth alongside. One scrape is allowed; two fail you. Cargo must arrive unshifted.',
+    cargo: 'Ballast (examiner aboard)',
+    reward: 0, rep: 0, xp: 0, risk: 'Exam',
+    weather: 'breezy',
+  },
 ];
 
 // Fill in what a planned mission derives from its ports: names, start pose, berth and the default
 // (shortest) route with its deadline. The player may replace the route on the chart (see sim/routes.js planMission).
 for (const m of MISSIONS) {
   if (!m.planned) continue;
-  const from = PORTS[m.fromPort], to = PORTS[m.toPort];
-  const route = shortestRoute(m.fromPort, m.toPort);
-  m.from = from.name;
-  m.to = to.name;
+  // The default route is planned for the one vessel class the job allows (if there is only one).
+  const rcls = m.routeVessel || (m.vesselClasses.length === 1 ? m.vesselClasses[0] : null);
+  const rv = rcls ? VESSELS.find((v) => v.class === rcls) : null;
+  const from = portView(m.fromPort, rv), to = portView(m.toPort, rv);
+  const route = shortestRoute(m.fromPort, m.toPort, rv);
+  m.from = PORTS[m.fromPort].name;
+  m.to = PORTS[m.toPort].name;
   m.start = from.start;
   m.dock = to.berth;
   m.waypoints = route.waypoints;

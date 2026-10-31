@@ -4,7 +4,7 @@ export function createHud() {
   const els = {
     speed: $('hud-speed'), heading: $('hud-heading'), throttle: $('hud-throttle-fill'),
     objective: $('hud-objective'), timer: $('hud-timer'), limit: $('hud-limit'), wind: $('hud-wind'), warning: $('hud-warning'),
-    arrow: $('hud-arrow'), hull: $('hud-hull'), hullBox: $('hud-hull-box'), zone: $('hud-zone'),
+    arrow: $('hud-arrow'), hull: $('hud-hull'), hullBox: $('hud-hull-box'), zone: $('hud-zone'), cargo: $('hud-cargo'),
     dock: $('hud-dock'), dockTitle: $('dock-title'), dockHint: $('dock-hint'), dockFill: $('dock-fill'),
     dkPos: $('dk-pos'), dkSpd: $('dk-spd'), dkAng: $('dk-ang'),
   };
@@ -27,6 +27,8 @@ export function createHud() {
       els.wind.textContent = d.wind;
       els.arrow.style.transform = `rotate(${d.bearingRel}deg)`;
       els.hull.textContent = `${Math.round(d.hull)}%`;
+      els.cargo.classList.toggle('hidden', !d.cargo);
+      if (d.cargo) { els.cargo.textContent = d.cargo.text + (d.cargo.over ? ': shifting, ease the helm' : ''); els.cargo.classList.toggle('over', d.cargo.over); }
       els.zone.classList.toggle('hidden', !d.zone);
       if (d.zone) { els.zone.textContent = d.zone.text; els.zone.classList.toggle('over', d.zone.over); }
       els.hullBox.classList.toggle('low', d.hull < 40);

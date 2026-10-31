@@ -32,7 +32,7 @@ async function open(browser, url, profile) {
   // ---- novice: reputation gate
   {
     const { ctx, page, errors } = await open(browser, server.url, novice);
-    check((await page.locator('.mcard').count()) === 15, 'board lists 15 missions');
+    check((await page.locator('.mcard').count()) === 22, 'board lists 22 missions');
     check((await page.locator('.mcard.locked[data-id="cape-parcels"]').count()) === 1, 'Cape Quay Parcel Run is locked at reputation 0');
     check(/reputation 5/.test(await page.textContent('.mcard[data-id="cape-parcels"] .lock-note')), 'locked card explains the reputation needed');
     check((await page.locator('.mcard.locked[data-id="supply-run"]').count()) === 0, 'the short supply run is open with just the permit');
@@ -46,7 +46,7 @@ async function open(browser, url, profile) {
   // ---- chart view from the board
   await page.click('#board-chart');
   check((await page.evaluate(() => window.__bwc.mode)) === 'chart' && (await page.isVisible('#chart')), 'board Chart button opens the chart');
-  check((await page.locator('#chart-ports li').count()) === 4, 'chart lists the four ports with their limits');
+  check((await page.locator('#chart-ports li').count()) === 5, 'chart lists the five ports with their limits');
   check(/Slow zone \d+ kn, vessels up to 12 m/.test(await page.textContent('#chart-ports')), 'port list shows slow zones and size limits');
   check(await page.isHidden('#chart-confirm'), 'view-only chart has no route controls');
   const painted = await page.evaluate(() => { const c = document.getElementById('chart-canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let colours = new Set(); for (let i = 0; i < d.length; i += 4 * 97) colours.add(`${d[i]},${d[i + 1]},${d[i + 2]}`); return colours.size; });

@@ -1,8 +1,8 @@
 // Route planning on the navigation chart. A route is a path of chart markers from one port's fairway to
 // another's, plus the port approach waypoints at each end. Pure logic: nothing here touches the DOM or WebGL.
 import { NODES, EDGES } from '../data/charts.js';
-import { PORTS, BERTHS, getPort } from '../data/ports.js';
-import { staticObstacles } from './world.js';
+import { PORTS, BERTHS, getPort, portView, portAccepts } from '../data/ports.js';
+import { staticObstacles, SHOALS, UNDER_KEEL } from './world.js';
 import { distanceToObstacle } from './shore.js';
 import { seaEffect } from './weather.js';
 
@@ -26,7 +26,19 @@ function legClearance(a, b, obstacles) {
   return best;
 }
 
-// Adjacency: id -> [{ to, length, clearance, narrow }]
+// Shallowest shoal a leg crosses (Infinity if none): deep-draft vessels cannot use legs shallower than they need.
+function legShoalDepth(a, b) {
+  const steps = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 5));
+  let depth = Infinity;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+    for (const sh of SHOALS) if (distanceToObstacle(x, z, sh) === 0) depth = Math.min(depth, sh.depth);
+  }
+  return depth;
+}
+
+// Adjacency: id -> [{ to, length, clearance, narrow, minDepth }]
 const obstacles = staticObstacles();
 export const LEGS = new Map();
 const adjacency = new Map(NODES.map((n) => [n.id, []]));
@@ -35,17 +47,20 @@ for (const [a, b] of EDGES) {
   const length = Math.hypot(A.x - B.x, A.z - B.z);
   const clearance = legClearance(A, B, obstacles);
   const narrow = clearance < NARROW_CLEARANCE;
-  adjacency.get(a).push({ to: b, length, clearance, narrow });
-  adjacency.get(b).push({ to: a, length, clearance, narrow });
-  LEGS.set(`${a}-${b}`, { a, b, length, clearance, narrow });
-  LEGS.set(`${b}-${a}`, { a: b, b: a, length, clearance, narrow });
+  const minDepth = legShoalDepth(A, B);
+  adjacency.get(a).push({ to: b, length, clearance, narrow, minDepth });
+  adjacency.get(b).push({ to: a, length, clearance, narrow, minDepth });
+  LEGS.set(`${a}-${b}`, { a, b, length, clearance, narrow, minDepth });
+  LEGS.set(`${b}-${a}`, { a: b, b: a, length, clearance, narrow, minDepth });
 }
 
 export const neighbours = (id) => adjacency.get(id) || [];
 
-// Can this vessel use a leg? Width between hazards must be several beams.
+// Can this vessel use a leg? The width between hazards must be several beams, and the water deep enough.
 export function legPassable(leg, vessel) {
-  return !vessel || leg.clearance * 2 >= vessel.beam * 4;
+  if (!vessel) return true;
+  if (leg.clearance * 2 < vessel.beam * 4) return false;
+  return leg.minDepth === undefined || leg.minDepth === Infinity || vessel.draft + UNDER_KEEL <= leg.minDepth;
 }
 
 export function pathLength(path) {
@@ -81,8 +96,8 @@ function describeLegs(path) {
 }
 
 // Build a route object from a path of marker ids between two ports.
-export function routeFromPath(fromPortId, toPortId, path) {
-  const from = getPort(fromPortId), to = getPort(toPortId);
+export function routeFromPath(fromPortId, toPortId, path, vessel = null) {
+  const from = portView(fromPortId, vessel), to = portView(toPortId, vessel);
   const legs = describeLegs(path);
   const seaLength = legs.reduce((a, l) => a + l.length, 0);
   // Whole trip: berth to the first marker, the charted legs, then the harbor approach to the berth.
@@ -95,6 +110,7 @@ export function routeFromPath(fromPortId, toPortId, path) {
     from: fromPortId, to: toPortId, path, legs, length, seaLength, hazards, narrowCount: narrow.length,
     waypoints: routeWaypoints(from, to, path),
     deadline: routeDeadline(length),
+    vesselId: vessel ? vessel.id : null,
   };
 }
 
@@ -123,12 +139,13 @@ export const routeDeadline = (length) => Math.round((length / REFERENCE_SPEED + 
 // Up to `max` distinct, sensible routes between two ports: the shortest plus real alternatives (no route
 // more than 1.35x the shortest, none through another port, none that is nearly the same length and markers).
 export function findRoutes(fromPortId, toPortId, { vessel = null, max = 3 } = {}) {
-  const from = getPort(fromPortId), to = getPort(toPortId);
-  if (!from || !to || fromPortId === toPortId) return [];
+  if (!getPort(fromPortId) || !getPort(toPortId) || fromPortId === toPortId) return [];
+  if (vessel && !(portAccepts(fromPortId, vessel) && portAccepts(toPortId, vessel))) return []; // a port that refuses the vessel has no route
+  const from = portView(fromPortId, vessel), to = portView(toPortId, vessel);
   const all = simplePaths(from.fairway, to.fairway, vessel, Infinity);
   if (!all.length) return [];
   const best = all[0].len;
-  const otherFairways = Object.values(PORTS).map((p) => p.fairway).filter((f) => f !== from.fairway && f !== to.fairway);
+  const otherFairways = Object.values(PORTS).flatMap((p) => [p.fairway, p.deep && p.deep.fairway]).filter((f) => f && f !== from.fairway && f !== to.fairway);
   const picked = [];
   for (const cand of all) {
     if (cand.len > best * MAX_DETOUR) break;
@@ -140,7 +157,7 @@ export function findRoutes(fromPortId, toPortId, { vessel = null, max = 3 } = {}
     if (picked.length >= max) break;
   }
   return picked.map((p, i) => {
-    const r = routeFromPath(fromPortId, toPortId, p.path);
+    const r = routeFromPath(fromPortId, toPortId, p.path, vessel);
     r.name = i === 0 ? 'Shortest route' : `Alternative ${i}`;
     r.via = i === 0 ? '' : viaNames(p.path, picked[0].path);
     r.rank = i;
@@ -161,20 +178,20 @@ export function shortestRoute(fromPortId, toPortId, vessel = null) {
 // What the player can add next while building a route by hand: unvisited markers one leg away that the
 // vessel can use. Once the path ends at the destination's fairway there is nothing to add.
 export function nextMarkers(path, toPortId, vessel = null) {
-  const to = getPort(toPortId);
+  const to = portView(toPortId, vessel);
   const last = path[path.length - 1];
   if (last === to.fairway) return [];
   return neighbours(last).filter((e) => !path.includes(e.to) && legPassable(e, vessel)).map((e) => ({ id: e.to, name: nodeById[e.to].name, length: e.length, narrow: e.narrow }));
 }
 
-export function isComplete(path, toPortId) {
-  return path[path.length - 1] === getPort(toPortId).fairway;
+export function isComplete(path, toPortId, vessel = null) {
+  return path[path.length - 1] === portView(toPortId, vessel).fairway;
 }
 
 // Validate a hand-built path: starts at the origin's fairway, every step is a real leg, simple, passable.
 export function validatePath(fromPortId, toPortId, path, vessel = null) {
-  const from = getPort(fromPortId);
-  const to = getPort(toPortId);
+  const from = portView(fromPortId, vessel);
+  const to = portView(toPortId, vessel);
   if (!path.length || path[0] !== from.fairway) return { ok: false, reason: `A route starts at ${nodeById[from.fairway].name}.` };
   if (new Set(path).size !== path.length) return { ok: false, reason: 'A route cannot visit the same marker twice.' };
   for (let i = 1; i < path.length; i++) {
@@ -194,9 +211,11 @@ export function estimateSeconds(route, vessel, weather) {
 }
 
 // A mission instance that sails the given route: same mission, new waypoints and a deadline for the length.
-export function planMission(mission, route) {
+// The start pose and berth depend on the vessel (ships use the deep terminal), so they are set here too.
+export function planMission(mission, route, vessel = null) {
   if (!mission.planned) return mission;
-  return { ...mission, waypoints: route.waypoints, deadline: route.deadline, routeName: route.name, routeId: route.id, routeLength: route.length };
+  const from = portView(mission.fromPort, vessel), to = portView(mission.toPort, vessel);
+  return { ...mission, start: from.start, dock: to.berth, waypoints: route.waypoints, deadline: route.deadline, routeName: route.name, routeId: route.id, routeLength: route.length };
 }
 
 export { PORTS };

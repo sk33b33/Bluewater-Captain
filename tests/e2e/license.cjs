@@ -54,8 +54,8 @@ const check = (cond, msg) => { if (!cond) { fails.push(msg); console.log('FAIL',
   await page.goto(url);
   await page.waitForTimeout(600);
   await page.click('#start-btn');
-  check((await page.locator('.mcard').count()) === 15, 'board lists 15 missions');
-  check((await page.locator('.mcard.locked').count()) === 13, 'fresh profile: only the 2 permit training missions are open');
+  check((await page.locator('.mcard').count()) === 22, 'board lists 22 missions');
+  check((await page.locator('.mcard.locked').count()) === 20, 'fresh profile: only the 2 permit training missions are open');
   await page.screenshot({ path: path.join(out, 'l-board.png') });
 
   // locked contract: briefing explains, depart disabled

@@ -27,6 +27,43 @@ function fill(list, items) {
   for (const t of items) list.appendChild(el('li', '', t));
 }
 
+// Every vessel drawn side-on to the same scale, longest at the bottom, with a 100 m reference bar.
+export function drawFleetScale(canvas, vessels) {
+  const g = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#17506f';
+  g.fillRect(0, 0, W, H);
+  const maxLen = Math.max(...vessels.map((v) => v.length), 100);
+  const left = 230, right = 80;
+  const k = (W - left - right) / maxLen; // pixels per metre
+  const rowH = (H - 26) / vessels.length;
+  g.font = '17px system-ui, sans-serif';
+  g.textBaseline = 'middle';
+  vessels.forEach((v, i) => {
+    const y = 8 + i * rowH + rowH / 2;
+    const len = v.length * k;
+    const hullH = Math.max(5, rowH * 0.5);
+    const cabinH = Math.max(3, rowH * 0.28);
+    g.fillStyle = '#' + v.look.hull.toString(16).padStart(6, '0');
+    g.fillRect(left, y - hullH / 2 + cabinH / 2, len, hullH);
+    g.fillStyle = '#' + v.look.cabin.toString(16).padStart(6, '0'); // the deckhouse, aft (right)
+    g.fillRect(left + len * 0.74, y - hullH / 2 - cabinH / 2 + cabinH / 2, Math.max(4, len * 0.12), cabinH);
+    g.fillStyle = '#fff';
+    g.textAlign = 'right';
+    g.fillText(v.name, left - 8, y);
+    g.textAlign = 'left';
+    g.fillText(`${v.length} m`, left + len + 6, y);
+  });
+  // 100 m reference: the length of the old harbor pier
+  g.strokeStyle = '#ffd34d';
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(left, H - 12); g.lineTo(left + 100 * k, H - 12); g.stroke();
+  g.fillStyle = '#ffd34d';
+  g.textAlign = 'left';
+  g.fillText('100 m', left + 100 * k + 6, H - 12);
+}
+
 export function createMenus(h) {
   let resetArmed = false;
   const hideAll = () => SCREENS.forEach((id) => $(id).classList.add('hidden'));
@@ -161,6 +198,10 @@ export function createMenus(h) {
       $('br-dock-tip').textContent = ctx.dockName
         ? `Docking: stop inside the green berth at ${ctx.dockName}. Be slower than ${(DOCK.maxSpeed * 1.944).toFixed(0)} knots, within ${DOCK.maxAngleDeg}° of the pier line, and hold still for ${DOCK.holdSeconds} seconds. Reverse (S) to brake. Hard hits damage the hull.`
         : 'Follow the yellow beams through each buoy gate. Hard hits damage the hull.';
+      const advice = [];
+      if (m.cargoStrain) advice.push('Cargo: hard turns at speed shift it. Plan every turn early and use gentle rudder; the HUD shows the cargo condition.');
+      if (ctx.vessel && ctx.vessel.draft >= 4) advice.push(`Your ${ctx.vessel.name} draws ${ctx.vessel.draft} m: it cannot cross the pale shoal areas on the chart. Keep to the dredged channel, and start slowing hundreds of metres before the berth.`);
+      if (advice.length) $('br-dock-tip').textContent += ' ' + advice.join(' ');
       $('br-lock').classList.toggle('hidden', ctx.access.ok);
       $('br-lock').textContent = ctx.access.ok ? '' : `Locked: ${ctx.access.reason}`;
       $('br-depart').disabled = !ctx.access.ok;
@@ -283,6 +324,7 @@ export function createMenus(h) {
     showFleet(profile, rows) {
       const list = $('fleet-list');
       list.textContent = '';
+      drawFleetScale($('fleet-scale'), rows.map((r) => r.vessel));
       for (const r of rows) {
         const v = r.vessel;
         const card = el('div', 'vcard' + (r.active ? ' active' : ''));

@@ -79,3 +79,14 @@ Record each decision with date, context, options, decision, and consequences.
 - **Progression:** far contracts require reputation (5 to 10) on top of licenses. Reputation comes from completing jobs, so the bay opens up gradually.
 - **Shore texture** now covers the whole region at 1024 x 1024 and is baked only near obstacles; the water mesh follows the camera, snapped to its grid.
 - Lesson: a global `canvas {}` style meant for the game view made the chart canvas full-screen. Game canvas rules are now scoped to `#game`.
+
+## D-011 — Stage 7 large-vessel model (ACCEPTED as part of Stage 7 build, 2026-10-31)
+- **Ships are data like everything else** (`src/data/vessels.js`), now with `cargoLimit` and a deeper `draft`. Physics did not change: the same model with ship-sized numbers (thrust 0.3 m/s^2, astern 0.14 to 0.18, yaw rate 0.10 to 0.14 rad/s, slow rudder and yaw response). Top speeds 19 and 22 kn.
+- **Hull**: collision uses a row of overlapping circles sized by beam and spread along the length (3 to 17 circles), so a 140 m ship has no gaps.
+- **Depth as a vessel property**: shoals are separate from solid obstacles. A vessel is blocked when `draft + 1 m` exceeds the shoal depth, so the skiff crosses everything and the ships stay in the channel. Shoal tint comes from the green channel of the shore texture, so it costs nothing extra to draw.
+- **Ports present a variant**: a port with a `deep` section shows ships the deep berth, fairway, approach and slow zone (`portView`). Size limits run both ways (`minLength`). The planner refuses routes to ports that refuse the vessel.
+- **Berths**: deep berths are 220 x 40 m. A ship must fit inside the berth (its centre must stay clear of both ends by half its length less a small margin); small berths keep the old margin. Docking offset is scored against the berth's own tolerance (40 m at the terminals).
+- **Cargo**: cargo jobs measure sideways acceleration (speed x turn rate) against the vessel's cargo limit; 12 s over the limit spoils the cargo completely. Score weights for cargo jobs are Safety 20, Navigation 20, Timing 15, Docking 25, Cargo 20.
+- **One license for both ships**: the Large Vessel Endorsement permits the freighter and the container carrier; the container jobs additionally need reputation 45, so the biggest ship is a later goal without a fourth license.
+- **Deadlines**: ship factors are 1.3 and 1.4; a 3.6 km ship job gets about 12 minutes for a vessel whose scripted-captain time is about 10 minutes.
+- **Geography**: the Seal Rocks, Anvil and Tern shoals, the Cape shoal bands, the Long Spit and the Driftwood bay were laid out and checked with scripts: every ship leg is swept with the real hull and the real shoals in the unit tests.

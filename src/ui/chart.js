@@ -2,8 +2,9 @@
 // route between two ports. Drawing and picking maths are exported so they can be tested.
 import { REGION, staticObstacles } from '../sim/world.js';
 import { NODES, EDGES } from '../data/charts.js';
-import { PORTS, BERTHS } from '../data/ports.js';
-import { LEGS } from '../sim/routes.js';
+import { PORTS, BERTHS, portView } from '../data/ports.js';
+import { SHOALS } from '../sim/world.js';
+import { LEGS, legPassable } from '../sim/routes.js';
 import { formatTime } from '../sim/route.js';
 
 const MARGIN = 150; // metres of open water drawn around the region
@@ -48,9 +49,16 @@ export function drawChart(canvas, ctx) {
   g.strokeRect(px(REGION.minX), pz(REGION.minZ), px(REGION.maxX) - px(REGION.minX), pz(REGION.maxZ) - pz(REGION.minZ));
   g.setLineDash([]);
 
-  // land, islands, piers
+  // shoals: pale shallows (only deep-draft ships are kept out of them)
+  g.fillStyle = 'rgba(120,200,185,.45)';
+  for (const sh of SHOALS) {
+    if (sh.type === 'circle') { g.beginPath(); g.arc(px(sh.cx), pz(sh.cz), sh.r * k, 0, Math.PI * 2); g.fill(); }
+    else g.fillRect(px(sh.cx - sh.hx), pz(sh.cz - sh.hz), px(sh.cx + sh.hx) - px(sh.cx - sh.hx), pz(sh.cz + sh.hz) - pz(sh.cz - sh.hz));
+  }
+
+  // land, islands, piers and quays
   for (const o of staticObstacles()) {
-    const pier = o.name.includes('pier'), wall = o.name.includes('Breakwater');
+    const pier = /pier|quay/i.test(o.name), wall = o.name.includes('Breakwater');
     g.fillStyle = pier ? '#9a7a4e' : wall ? '#8a8f94' : '#5f8a4c';
     if (o.type === 'circle') {
       g.beginPath(); g.arc(px(o.cx), pz(o.cz), Math.max(2.5, o.r * k), 0, Math.PI * 2); g.fill();
@@ -66,8 +74,9 @@ export function drawChart(canvas, ctx) {
   for (const [a, b] of EDGES) {
     const leg = LEGS.get(`${a}-${b}`);
     g.lineWidth = 1.5;
-    g.strokeStyle = leg.narrow ? 'rgba(255,170,90,.8)' : 'rgba(190,225,245,.35)';
-    g.setLineDash(leg.narrow ? [5, 4] : []);
+    const blocked = ctx.vessel && !legPassable(leg, ctx.vessel);
+    g.strokeStyle = blocked ? 'rgba(255,110,110,.35)' : leg.narrow ? 'rgba(255,170,90,.8)' : 'rgba(190,225,245,.35)';
+    g.setLineDash(blocked ? [2, 5] : leg.narrow ? [5, 4] : []);
     g.beginPath(); g.moveTo(px(node[a].x), pz(node[a].z)); g.lineTo(px(node[b].x), pz(node[b].z)); g.stroke();
   }
   g.setLineDash([]);
@@ -85,7 +94,7 @@ export function drawChart(canvas, ctx) {
 
   // the chosen route, bold, with a leg out of the berth and into the destination berth
   if (ctx.path && ctx.path.length) {
-    const from = PORTS[ctx.from], to = PORTS[ctx.to];
+    const from = portView(ctx.from, ctx.vessel), to = portView(ctx.to, ctx.vessel);
     const pts = [{ x: BERTHS[from.berth].cx, z: BERTHS[from.berth].cz }, ...ctx.path.map((id) => node[id])];
     if (ctx.path[ctx.path.length - 1] === to.fairway) pts.push(...to.inbound, { x: BERTHS[to.berth].cx, z: BERTHS[to.berth].cz });
     g.strokeStyle = '#ffd34d';
@@ -118,7 +127,13 @@ export function drawChart(canvas, ctx) {
   // ports
   g.font = '700 12px system-ui, sans-serif';
   for (const p of Object.values(PORTS)) {
-    const b = BERTHS[p.berth];
+    if (p.deep) {
+      const db = BERTHS[p.deep.berth];
+      g.fillStyle = '#' + p.beacon.color.toString(16).padStart(6, '0');
+      g.strokeStyle = '#fff'; g.lineWidth = 1;
+      g.beginPath(); g.rect(px(db.cx - db.halfLength) , pz(db.cz - 6), px(db.cx + db.halfLength) - px(db.cx - db.halfLength), 12); g.fill(); g.stroke();
+    }
+    const b = BERTHS[(p.berth)];
     const x = px(b.cx), z = pz(b.cz);
     const color = `#${p.beacon.color.toString(16).padStart(6, '0')}`;
     const isEnd = p.id === ctx.from || p.id === ctx.to;
@@ -227,13 +242,15 @@ export function createChart(h) {
       ports.textContent = '';
       for (const p of Object.values(PORTS)) {
         const li = el('li');
-        li.append(el('b', '', p.name), el('span', 'note', `  ${p.blurb} Slow zone ${p.speedLimit.knots} kn, vessels up to ${p.maxLength} m.`));
+        const lim = p.minLength > 0 ? `vessels ${p.minLength} to ${p.maxLength} m` : `vessels up to ${p.maxLength} m`;
+        const deep = p.deep ? ` Deep-water terminal: ${p.deep.minLength} to ${p.deep.maxLength} m, slow zone ${p.deep.speedLimit.knots} kn.` : '';
+        li.append(el('b', '', p.name), el('span', 'note', `  ${p.blurb} Slow zone ${p.speedLimit.knots} kn, ${lim}.${deep}`));
         ports.appendChild(li);
       }
 
       const size = Math.min(900, Math.max(360, Math.round(canvas.getBoundingClientRect().width * (window.devicePixelRatio || 1)) || 600));
       if (canvas.width !== size) { canvas.width = size; canvas.height = size; }
-      drawChart(canvas, { path, routes: ctx.routes, selectedIndex: ctx.selectedIndex, nextIds: (ctx.next || []).map((n) => n.id), from: ctx.from, to: ctx.to });
+      drawChart(canvas, { path, routes: ctx.routes, selectedIndex: ctx.selectedIndex, nextIds: (ctx.next || []).map((n) => n.id), from: ctx.from, to: ctx.to, vessel: ctx.vessel });
     },
     hide() { $('chart').classList.add('hidden'); },
   };

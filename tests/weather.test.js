@@ -108,20 +108,22 @@ test('relative sea: small boats suffer most, calm water is harmless', () => {
   assert.ok(eff('rough', skiff).speedFactor > 0.6, 'never uncontrollable');
 });
 
-function topSpeed(v, sea) { const s = createVesselState(0, 0, 0); for (let i = 0; i < 60 * 90; i++) stepVessel(s, { throttle: 1, steer: 0 }, v, DT, undefined, sea); return s.u; }
+function topSpeed(v, sea) { const s = createVesselState(0, 0, 0); for (let i = 0; i < 60 * 400; i++) stepVessel(s, { throttle: 1, steer: 0 }, v, DT, undefined, sea); return s.u; }
 
 test('rough seas lower top speed by exactly the sea factor', () => {
   for (const v of VESSELS) {
     const sea = seaEffect(WEATHER.choppy, v);
     const u = topSpeed(v, sea);
     assert.ok(Math.abs(u - v.maxSpeed * sea.speedFactor) < 0.6, `${v.id}: ${u.toFixed(2)} vs ${(v.maxSpeed * sea.speedFactor).toFixed(2)}`);
-    assert.ok(u < topSpeed(v, NO_SEA));
+    if (sea.speedFactor < 1) assert.ok(u < topSpeed(v, NO_SEA), `${v.id} should be slower`);
+    else assert.ok(Math.abs(u - topSpeed(v, NO_SEA)) < 1e-9, `${v.id} unaffected`);
   }
 });
 
 test('rough seas blunt steering: wider turns, most for the small boat', () => {
   const radius = (v, sea) => { const s = createVesselState(0, 0, 0); for (let i = 0; i < 60 * 40; i++) stepVessel(s, { throttle: Math.max(-1, Math.min(1, (6 - s.u) * 0.8)), steer: 0 }, v, DT, undefined, sea); for (let i = 0; i < 60 * 12; i++) stepVessel(s, { throttle: Math.max(-1, Math.min(1, (6 - s.u) * 0.8)), steer: 1 }, v, DT, undefined, sea); return s.u / Math.abs(s.r); };
-  for (const v of VESSELS) assert.ok(radius(v, seaEffect(WEATHER.rough, v)) > radius(v, NO_SEA) * 1.05, v.id);
+  for (const v of VESSELS.filter((x) => seaEffect(WEATHER.rough, x).steerFactor < 0.99)) assert.ok(radius(v, seaEffect(WEATHER.rough, v)) > radius(v, NO_SEA) * 1.05, v.id);
+  for (const v of VESSELS.filter((x) => x.length >= 60)) assert.equal(seaEffect(WEATHER.rough, v).speedFactor, 1, `${v.id} ignores a rough bay`);
   const gain = (v) => radius(v, seaEffect(WEATHER.rough, v)) / radius(v, NO_SEA);
   assert.ok(gain(skiff) > gain(cat));
   assert.ok(Math.abs(radius(skiff, NO_SEA) - turnRadius(skiff)) < 0.01, 'no sea = old behaviour');

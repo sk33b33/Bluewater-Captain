@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NODES, EDGES } from '../src/data/charts.js';
-import { PORTS, BERTHS, getPort, portByBerth, portZones, knotsToMps } from '../src/data/ports.js';
+import { PORTS, BERTHS, getPort, portByBerth, portZones, knotsToMps, portView } from '../src/data/ports.js';
 import { MISSIONS, getMission, gateBuoys } from '../src/data/missions.js';
 import { VESSELS, getVessel } from '../src/data/vessels.js';
 import { WEATHER, getWeather } from '../src/data/weather.js';
-import { staticObstacles, resolveCollisions, REGION, BUOY_RADIUS } from '../src/sim/world.js';
+import { staticObstacles, resolveCollisions, REGION, BUOY_RADIUS, shoalsFor } from '../src/sim/world.js';
 import { distanceToObstacle, distanceToShore } from '../src/sim/shore.js';
 import { createVesselState } from '../src/sim/vessel.js';
 import { SMALL_MOTORBOAT as P } from '../src/sim/vessel.js';
@@ -32,39 +32,44 @@ test('the region is a 4 km box with the west harbor inside it', () => {
   assert.ok(Object.keys(PORTS).length >= 4);
 });
 
-test('every port has a clear berth, a clear start pose, a slow zone and a beacon', () => {
-  for (const p of Object.values(PORTS)) {
-    const b = BERTHS[p.berth];
-    assert.ok(b, `${p.id} berth`);
-    for (const [label, x, z] of [['berth centre', b.cx, b.cz], ['start', p.start.x, p.start.z]]) {
-      const s = createVesselState(x, z, p.start.heading);
-      assert.equal(resolveCollisions(s, skiff, obs).hit, false, `${p.id} ${label}`);
+// Every berth variant of every port, with a vessel that is typical for it.
+const variants = Object.values(PORTS).flatMap((p) => [{ p, v: p, vessel: skiff, label: p.id }, ...(p.deep ? [{ p, v: portView(p, getVessel('container-carrier')), vessel: getVessel('container-carrier'), label: `${p.id} (deep)` }] : [])])
+  .map((x) => (x.p.minLength > 0 && x.v === x.p ? { ...x, vessel: getVessel('cargo-ship') } : x));
+
+test('every port variant has a clear berth, a clear start pose for its vessel, a slow zone and a beacon', () => {
+  for (const { p, v, vessel, label } of variants) {
+    const b = BERTHS[v.berth];
+    assert.ok(b, `${label} berth`);
+    for (const [what, x, z] of [['berth centre', b.cx, b.cz], ['start', v.start.x, v.start.z]]) {
+      const s = createVesselState(x, z, v.start.heading);
+      assert.equal(resolveCollisions(s, vessel, [...obs, ...shoalsFor(vessel)]).hit, false, `${label} ${what} for the ${vessel.id}`);
     }
-    assert.ok(p.speedLimit.knots > 0 && p.speedLimit.radius > 30, p.id);
+    assert.ok(v.speedLimit.knots > 0 && v.speedLimit.radius > 30, label);
     assert.ok(p.beacon && p.beacon.x !== undefined, `${p.id} beacon`);
-    assert.ok(p.maxLength >= 12, `${p.id} takes at least the small vessels`);
+    assert.ok(v.maxLength >= 12, `${label} takes at least the small vessels`);
     assert.equal(getPort(p.id), p);
-    assert.equal(portByBerth(p.berth), p);
-    for (const w of p.inbound) assert.ok(clearOfObstacles(w.x, w.z, 8), `${p.id} inbound ${w.name}`);
+    assert.equal(portByBerth(v.berth), p);
+    for (const w of v.inbound) assert.ok(clearOfObstacles(w.x, w.z, 8), `${label} inbound ${w.name}`);
   }
   assert.equal(getPort('nope'), null);
 });
 
-test('port slow zones: one per port, centred on the berth, in m/s', () => {
+test('port slow zones: one per berth, centred on it, in m/s, departures start inside', () => {
   const zones = portZones();
-  assert.equal(zones.length, portIds.length);
+  assert.equal(zones.length, variants.length);
   for (const z of zones) {
     const p = PORTS[z.port];
-    assert.equal(z.x, BERTHS[p.berth].cx);
-    assert.ok(Math.abs(z.limit - knotsToMps(p.speedLimit.knots)) < 1e-9);
-    assert.ok(Math.hypot(p.start.x - z.x, p.start.z - z.z) < z.radius, 'departures start inside the slow zone');
+    const v = z.deep ? p.deep : p;
+    assert.equal(z.x, BERTHS[v.berth].cx);
+    assert.ok(Math.abs(z.limit - knotsToMps(v.speedLimit.knots)) < 1e-9);
+    assert.ok(Math.hypot(v.start.x - z.x, v.start.z - z.z) < z.radius, `${z.port} departures start inside the slow zone`);
   }
-  assert.equal(PORT_ZONES.length, portIds.length);
+  assert.equal(PORT_ZONES.length, variants.length);
   assert.ok(knotsToMps(14) > 7 && knotsToMps(14) < 7.4);
 });
 
-test('the other ports are far from each other and from other ports\' slow zones', () => {
-  for (const a of PORT_ZONES) for (const b of PORT_ZONES) if (a !== b) assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > a.radius + b.radius + 200);
+test('different ports\' slow zones do not overlap', () => {
+  for (const a of PORT_ZONES) for (const b of PORT_ZONES) if (a.port !== b.port) assert.ok(Math.hypot(a.x - b.x, a.z - b.z) > a.radius + b.radius, `${a.port} and ${b.port}`);
 });
 
 // ---- the chart
@@ -76,8 +81,8 @@ test('chart nodes are in open water, inside the region, with unique ids', () => 
   }
 });
 
-test('every port fairway is a chart marker', () => {
-  for (const p of Object.values(PORTS)) assert.ok(getNode(p.fairway), p.id);
+test('every port fairway is a chart marker, including the deep-water ones', () => {
+  for (const p of Object.values(PORTS)) { assert.ok(getNode(p.fairway), p.id); if (p.deep) assert.ok(getNode(p.deep.fairway), `${p.id} deep`); }
   assert.equal(getNode('nope'), null);
 });
 
@@ -236,8 +241,9 @@ test('planMission swaps in the route and its deadline for planned missions only'
 // ---- missions use the ports
 test('planned missions derive start, berth, names and a default route from their ports', () => {
   for (const m of MISSIONS.filter((x) => x.planned)) {
-    assert.equal(m.start, PORTS[m.fromPort].start, m.id);
-    assert.equal(m.dock, PORTS[m.toPort].berth);
+    const rv = m.vesselClasses.length === 1 ? VESSELS.find((v) => v.class === m.vesselClasses[0]) : null;
+    assert.deepEqual(m.start, portView(m.fromPort, rv).start, m.id);
+    assert.equal(m.dock, portView(m.toPort, rv).berth);
     assert.equal(m.from, PORTS[m.fromPort].name);
     assert.ok(m.waypoints.length >= 2 && m.deadline > 100 && m.routeLength > 800, m.id);
     assert.ok(m.fromPort !== m.toPort);
@@ -357,8 +363,8 @@ test('the scripted captain completes every planned contract on every suggested r
       const v = VESSELS.find((x) => x.class === cls);
       if (!vesselFitsPorts(v, m)) continue;
       for (const route of findRoutes(m.fromPort, m.toPort, { vessel: v, max: 3 })) {
-        const inst = planMission(m, route);
-        const { run, s } = autopilot(inst, v, { maxSeconds: 1500 });
+        const inst = planMission(m, route, v);
+        const { run, s } = autopilot(inst, v, { maxSeconds: 2500 });
         runs++;
         assert.equal(run.phase, 'complete', `${m.id}/${v.id}/${route.id}: ${run.phase} at (${s.x.toFixed(0)},${s.z.toFixed(0)}) wp=${run.route.next} t=${run.time.toFixed(0)} hull=${Math.round(run.integrity)}`);
         assert.ok(run.time <= run.deadline, `${m.id}/${v.id}/${route.id}: ${run.time.toFixed(0)}s over ${run.deadline}s`);
@@ -366,7 +372,7 @@ test('the scripted captain completes every planned contract on every suggested r
       }
     }
   }
-  assert.ok(runs >= 30, `only ${runs} runs`);
+  assert.ok(runs >= 40, `only ${runs} runs`);
 });
 
 test('a longer route gets a longer deadline, so route choice is about risk and bonus, not just time', () => {

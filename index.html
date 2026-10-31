@@ -87,6 +87,7 @@
   fieldset.q legend { font-weight: 700; padding: 0 6px; }
   .opt { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; font-size: 15px; cursor: pointer; }
   .opt input { margin-top: 4px; width: 18px; height: 18px; }
+  #fleet-scale { width: 100%; height: auto; border-radius: 8px; border: 1px solid #2f5d7c; margin: 6px 0 4px; }
   .vcard { background: #16364d; border: 1px solid #2f5d7c; border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
   .vcard.active { border-color: var(--accent); }
   .vcard h3 { margin: 0 0 4px; font-size: 18px; }
@@ -113,6 +114,8 @@
   @media (max-width: 760px) { .chart-body { grid-template-columns: 1fr; } }
   button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
   #hud-zone { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  #hud-cargo { font-size: 13px; color: var(--ok); margin-top: 3px; }
+  #hud-cargo.over { color: var(--danger); font-weight: 700; }
   #hud-zone.over { color: var(--danger); font-weight: 700; }
   #hud-limit { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
   #hud-timer.late { color: var(--danger); }
@@ -166,11 +169,11 @@
 
 <div id="hud" aria-live="off">
   <div id="hud-top">
-    <div class="panel"><div id="hud-objective">-</div><div id="hud-zone" class="hidden"></div></div>
+    <div class="panel"><div id="hud-objective">-</div><div id="hud-zone" class="hidden"></div><div id="hud-cargo" class="hidden"></div></div>
     <div class="panel"><div id="hud-timer">--:--</div><div id="hud-limit"></div><div id="hud-wind"></div></div>
   </div>
   <div id="hud-warning" role="alert"></div>
-  <div id="badge">Stage 6 prototype &middot; placeholder art</div>
+  <div id="badge">Stage 7 prototype &middot; placeholder art</div>
   <div id="hud-bottom">
     <div class="panel stat"><div class="v" id="hud-speed">0.0</div><div class="l">knots</div>
       <div id="hud-throttle"><div id="hud-throttle-fill"></div></div></div>
@@ -202,7 +205,7 @@
 <div id="start" class="overlay hidden">
   <div class="card">
     <h1>Bluewater Captain</h1>
-    <p>Stage 6 prototype: earn licenses, pick a vessel and a contract on the mission board, plan your route across the bay on the chart, and sail it through the day's weather to the pier. All art is temporary placeholder.</p>
+    <p>Stage 7 prototype: earn licenses, pick a vessel from a skiff to a container ship and a contract on the mission board, plan your route across the bay on the chart, and sail it through the day's weather to the pier. All art is temporary placeholder.</p>
     <p class="touch-note">Touch: slide the left lever up for throttle (it stays where you leave it), slide the bottom-right bar to steer, drag the water to look around. Steering needs some speed.</p>
     <div class="keys">
       <span><kbd>W</kbd> <kbd>&uarr;</kbd></span><span>Throttle forward</span>
@@ -295,6 +298,7 @@
   <div class="card wide">
     <h2>Fleet</h2>
     <p class="note">Every vessel drives differently. Bars compare the fleet; numbers are measured from the boat model. Bigger vessels need a license.</p>
+    <canvas id="fleet-scale" width="900" height="250" role="img" aria-label="The fleet drawn to the same scale"></canvas>
     <div id="fleet-list"></div>
     <div class="row"><button id="fleet-licenses" class="ghost">Licenses</button><button id="fleet-back" class="ghost">Back to board</button></div>
   </div>
@@ -307,7 +311,7 @@
     <div class="chart-body">
       <div>
         <canvas id="chart-canvas" width="600" height="600" role="img" aria-label="Chart of Bluewater Bay showing ports, markers and your route"></canvas>
-        <p class="note plan-only">Click a ringed marker to extend your route, or use the list.</p>
+        <p class="note plan-only">Click a ringed marker to extend your route, or use the list. Pale green areas are shoals: ships with a deep draft cannot cross them, and red dotted legs are closed to your vessel.</p>
       </div>
       <div>
         <div class="plan-only">

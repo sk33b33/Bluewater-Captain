@@ -63,11 +63,16 @@ const frag = /* glsl */ `
     float fres = pow(1.0 - max(dot(n, view), 0.0), 3.0);
     float crest = smoothstep(0.35, 0.8, vWorld.y);
 
-    float sd = texture2D(uShore, (vWorld.xz - uShoreOrigin) / uShoreExtent).r * uShoreMax; // metres to land
+    vec4 shoreTex = texture2D(uShore, (vWorld.xz - uShoreOrigin) / uShoreExtent);
+    float sd = shoreTex.r * uShoreMax;            // metres to land
+    float shoalD = shoreTex.g * uShoreMax;        // metres to the nearest shoal (0 inside)
     float shallow = 1.0 - smoothstep(0.0, 45.0, sd);
 
     vec3 base = mix(uDeep, uShallow, crest * 0.6 + 0.2);
     base = mix(base, uShallow * 1.1, shallow * 0.7);
+    // Shoals: pale, sandy, clearly shallow water
+    float shoal = 1.0 - smoothstep(0.0, 22.0, shoalD);
+    base = mix(base, vec3(0.42, 0.74, 0.68), shoal * 0.7);
     vec3 col = mix(base, uSky, clamp(fres * 0.85, 0.0, 1.0));
     vec3 refl = reflect(-view, n);
     float spec = pow(max(dot(refl, normalize(uSunDir)), 0.0), 40.0);

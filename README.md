@@ -1,6 +1,6 @@
 # Bluewater Captain
 
-A 3D maritime career game that runs in your browser. **Stage 6 prototype**: train, earn the Small Craft Permit and then the Coastal Skipper, and take paid contracts between four ports around Bluewater Bay in a skiff, a workboat or a passenger craft, planning your own route on a chart. Each vessel drives differently, and the weather matters: wind gusts, wave height slows and blunts boats (small ones most), and fog limits what you can see. All art is temporary placeholder geometry.
+A 3D maritime career game that runs in your browser. **Stage 7 prototype**: train, earn the Small Craft Permit, the Coastal Skipper and the Large Vessel Endorsement, and take paid contracts between five ports around Bluewater Bay, from a 6 m skiff to a 140 m container ship, planning your own route on a chart. Big ships need the dredged channel, long berths, and gentle hands for the cargo. Each vessel drives differently, and the weather matters: wind gusts, wave height slows and blunts boats (small ones most), and fog limits what you can see. All art is temporary placeholder geometry.
 
 ## Run it
 Requires [Node.js](https://nodejs.org) 18+.
@@ -34,7 +34,8 @@ Open **Settings** from the mission board: pick a graphics quality (Auto lowers i
 
 ## Test
 ```
-npm test                                   # 168 unit tests (vessels, weather, performance tools, ports and routes, collision, missions, docking, scoring, licenses, quiz, profile)
+npm test                                   # 205 unit tests (vessels and ships, weather, performance tools, ports and routes, shoals, collision, missions, docking, scoring, cargo, licenses, quiz, profile)
+node tests/e2e/ships.cjs                   # optional headless ships / terminals / cargo test
 node tests/e2e/chart.cjs                   # optional headless chart / route-planning test
 node tests/e2e/weather.cjs                 # optional headless weather / quality / benchmark test
 node tests/e2e/vessels.cjs                 # optional headless fleet / vessel-choice test

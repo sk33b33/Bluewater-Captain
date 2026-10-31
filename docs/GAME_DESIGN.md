@@ -128,3 +128,12 @@ No multiplayer, procedural planet, economy simulation, fully simulated ship inte
 - **Route choice is a trade-off:** a longer route has a longer deadline, so time alone never forces the short way. The short way to Cape Quay is a 30 m gap between rocks; the wide ways cost 4 to 5% more distance. Arriving early pays up to +15%.
 - **Port approach limits:** slow zones around every berth and a vessel length limit per port. Breaking a limit costs Navigation points and the results say why.
 - **Progression:** short jobs are open to permit holders; far jobs need reputation (5 to 10) and some need a specific vessel. Reputation comes from finished jobs.
+
+
+## Stage 7 implementation notes: ships and terminals
+- **Two commercial vessels**: the 90 m Coastal Freighter and the 140 m Feeder Carrier. They are not faster small boats: they take about a minute to get going, a long time to stop, and a wide arc to turn, and they slide sideways in turns. The container stack catches the wind; waves hardly matter.
+- **Draft and channels**: deep-draft ships cannot cross shoal areas; they use the dredged channel between Cape Terminal and Driftwood Terminal. The player sees shoals as pale green water and on the chart, gets a warning near them, and damages the hull if they ground.
+- **Berths**: terminal berths are 220 m long. The whole ship must fit inside, so you aim for the middle with room at both ends. Accuracy is judged against the berth, not against a marina slip.
+- **Cargo**: heavy jobs score the cargo too. Hard turns at speed shift the load; the HUD shows the cargo condition. The answer is the same as for everything else big: plan early and use gentle rudder.
+- **Progression**: Large Vessel Endorsement (tier 3) after the Coastal Skipper and reputation 30; container jobs need reputation 45. Large jobs pay 3,200 to 5,400 credits.
+- **Port rules**: small craft use small berths; terminals take ships of 30 m and up only; harbors, Pine Isle and the marina refuse ships.

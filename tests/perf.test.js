@@ -162,3 +162,18 @@ test('baked shore texture equals a brute-force distance field, and a 4 km region
   }
   assert.ok(Date.now() - t0 < 1500, 'baking is cheap');
 });
+
+test('baked shoal channel: zero inside a shoal, rising with distance, and land does not leak into it', () => {
+  const area = { originX: -1300, originZ: -1300, extent: 4600, size: 256, maxDist: 80 };
+  const shoals = [{ type: 'circle', name: 's', cx: 1100, cz: 1300, r: 190, depth: 4.5 }];
+  const t = bakeShore(staticObstacles(), area, shoals);
+  const cell = area.extent / area.size;
+  const g = (x, z) => t.data[(Math.floor((z - area.originZ) / cell) * area.size + Math.floor((x - area.originX) / cell)) * 4 + 1];
+  assert.equal(g(1100, 1300), 0, 'inside the shoal');
+  assert.ok(g(1100 + 190 + 25, 1300) > 0 && g(1100 + 190 + 25, 1300) < 255, 'a little outside');
+  assert.ok(g(1100 + 190 + 55, 1300) > g(1100 + 190 + 25, 1300), 'rising with distance');
+  assert.equal(g(1100 + 190 + 120, 1300), 255, 'far away');
+  assert.equal(g(-1100, 0), 255, 'on land the shoal channel stays clear');
+  const empty = bakeShore(staticObstacles(), area);
+  assert.equal(empty.data[1], 255, 'no shoals means an untouched channel');
+});

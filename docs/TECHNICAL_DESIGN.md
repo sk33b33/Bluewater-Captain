@@ -141,3 +141,16 @@ Follow the system boundaries listed above. Specific choices:
 - **Rendering:** the shore-distance texture covers the region at 1024 x 1024 (baked only near obstacles); the water mesh follows the camera, snapped to its grid.
 - **Scale:** about 25 obstacles and a few dozen scenery boxes; no streaming. Collision stays O(obstacles x hull circles) per tick.
 - **Tests:** `tests/routes.test.js` (geometry, graph, planner, limits, bonus, scripted captain on every route and vessel) and `tests/e2e/chart.cjs`.
+
+
+---
+
+# Stage 7 Update: ships, shoals and deep-water terminals
+
+- **Vessels**: `src/data/vessels.js` now holds five vessels. `hullCircles` spreads overlapping circles along the length (`hullCircleCount`), so any length works.
+- **Depth**: `SHOALS` and `shoalsFor(vessel)` in `src/sim/world.js`. Shoals are not solid obstacles for everyone: they are added to a vessel's obstacle list only when `draft + UNDER_KEEL > depth`. Chart legs carry `minDepth` and `legPassable(leg, vessel)` checks both width and depth.
+- **Ports**: `src/data/ports.js` ports may have a `deep` section; `portView(port, vessel)` returns the variant for the vessel, `portAccepts` applies `minLength`/`maxLength`. The planner (`src/sim/routes.js`) takes the vessel into every function (`findRoutes`, `routeFromPath`, `nextMarkers`, `isComplete`, `validatePath`, `planMission`) and refuses routes to ports that refuse the vessel.
+- **Cargo**: `cargoStrain` on a mission switches on cargo scoring; `stepRun` measures `|u * r|` against the vessel's `cargoLimit`.
+- **Docking**: `evaluateDock(vessel, berth, length)` keeps a long ship's centre clear of the berth ends; berths may set `maxOffset`.
+- **Rendering**: shoal tint uses the green channel of the baked shore texture; ship models use instanced container stacks; quay cranes are merged into one mesh and container stacks on quays are instanced. Camera distance comes from the vessel.
+- **Tests**: `tests/ships.test.js` (ship handling, shoals, ports, berth fit, cargo, licensing, route sweeps with shoals) and `tests/e2e/ships.cjs`.

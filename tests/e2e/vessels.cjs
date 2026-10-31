@@ -32,12 +32,12 @@ async function open(browser, url, profile) {
   {
     const base = { version: 3, credits: 500, reputation: 5, xp: 0, completed: {}, vessel: 'small-motorboat', licenses: { 'small-craft-permit': licensed() } };
     const { ctx, page, errors } = await open(browser, server.url, base);
-    check((await page.locator('.mcard').count()) === 15, 'board lists 15 missions');
+    check((await page.locator('.mcard').count()) === 22, 'board lists 22 missions');
     check((await page.textContent('#p-vessel')) === 'Harbor Skiff', 'board shows the active vessel');
     check((await page.locator('.mcard.locked[data-id="workboat-haul"]').count()) === 1, 'Heavy Gear Haul is locked with only the permit');
     check(/Coastal Skipper/.test(await page.textContent('.mcard[data-id="workboat-haul"] .lock-note')), 'locked card names the license that unlocks the vessel');
     await page.click('#board-fleet');
-    check((await page.locator('.vcard').count()) === 3, 'fleet shows 3 vessels');
+    check((await page.locator('.vcard').count()) === 5, 'fleet shows 5 vessels');
     check(!(await page.isDisabled('#use-small-motorboat')) || /In use/.test(await page.textContent('#use-small-motorboat')), 'skiff is the active vessel');
     check(await page.isDisabled('#use-workboat'), 'workboat cannot be selected without the Coastal Skipper');
     check(await page.isDisabled('#use-coastal-passenger'), 'passenger craft cannot be selected without the Coastal Skipper');

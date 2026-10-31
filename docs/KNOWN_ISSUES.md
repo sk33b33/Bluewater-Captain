@@ -39,6 +39,15 @@
 - The whole 4 km region is always loaded; far scenery fades only through fog.
 - The gap at the Seal Rocks is only about 30 m wide, which is tight for the passenger craft; route search allows it because the hull sweep passes, but it is hard to hit by hand.
 
+- Stage 7 estimates: ship thrust, turning and stopping, cargo limits, deadlines (factors 1.3 and 1.4), the 800-credit exam fee and the reputation gates (30 and 45) are unplayed. Ship jobs are long (a 3.6 km route is about 10 to 12 minutes for the scripted captain).
+- No tug assistance, ferry or pilot: berthing a 140 m ship is entirely on the player. Tugs are backlog for Stage 8.
+- Depths are fixed (no tides, no draft change with cargo load). Shoals are drawn as a coarse texture (about 4.5 m per texel), so the visible edge is approximate while the collision edge is exact.
+- The shoal warning is a message plus colour; there is no depth sounder or under-keel readout.
+- A 140 m ship's model is placeholder boxes; the instanced container stacks are palette colours only.
+- Ships cannot use the old Cape pier, the harbor, Pine Isle or the marina, so they only have two deep-water ports to sail between.
+- Docking accuracy at a terminal is scored against a 40 m offset, which is forgiving by design; the scripted captain typically gets only 8 to 9 of 25 docking points because it stops well short of the berth centre, so a careful player can do much better.
+- The chart is busier with the extra deep-water markers; near the harbor several markers overlap on a phone-sized map (use the list under "Your route").
+
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |
 |----|------|-----------|--------|-----------|

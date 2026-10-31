@@ -47,6 +47,23 @@ export const LICENSES = [
     bonus: { reputation: 10, xp: 200 },
     comingSoon: null,
   },
+  {
+    id: 'large-vessel',
+    name: 'Large Vessel Endorsement',
+    tier: 3,
+    summary: 'Heavy-vessel inertia, deep-water channels and shoals, long berths and cargo that shifts if you turn hard.',
+    prerequisites: { licenses: ['coastal-skipper'], reputation: 30 },
+    training: [
+      { mission: 'cargo-trials', minScore: 50 },
+      { mission: 'container-trials', minScore: 50 },
+    ],
+    written: { questions: 5, passMark: 4 },
+    exam: { mission: 'large-vessel-exam', fee: 800, minScore: 70, maxCollisions: 1 },
+    permits: ['cargo-ship', 'container-carrier'],
+    unlocks: ['The Coastal Freighter and the Feeder Carrier', 'Deep-water contracts between Cape Terminal and Driftwood Terminal'],
+    bonus: { reputation: 20, xp: 400 },
+    comingSoon: null,
+  },
 ];
 
 export function getLicense(id) {

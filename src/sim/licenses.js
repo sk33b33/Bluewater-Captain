@@ -2,7 +2,7 @@
 import { LICENSES, getLicense, TRAINING_VESSELS, VESSEL_CLASSES } from '../data/licenses.js';
 import { getMission } from '../data/missions.js';
 import { VESSELS, getVessel, DEFAULT_VESSEL } from '../data/vessels.js';
-import { getPort } from '../data/ports.js';
+import { getPort, portAccepts, portMaxLength } from '../data/ports.js';
 
 export function emptyLicenseState() {
   return { held: false, heldAt: null, grandfathered: false, written: { attempts: 0, bestScore: 0, passed: false }, practical: { attempts: 0, bestScore: 0, passed: false } };
@@ -97,10 +97,11 @@ export function usableVessels(profile, mission) {
 
 // Longest vessel the mission's ports will take (Infinity for missions with no ports).
 export function portLengthLimit(mission) {
-  const lims = [mission.fromPort, mission.toPort].filter(Boolean).map((id) => getPort(id).maxLength);
+  const lims = [mission.fromPort, mission.toPort].filter(Boolean).map((id) => portMaxLength(getPort(id)));
   return lims.length ? Math.min(...lims) : Infinity;
 }
-export const vesselFitsPorts = (v, mission) => v.length <= portLengthLimit(mission);
+// Both ports must take the vessel (size limits, and commercial terminals refuse small craft).
+export const vesselFitsPorts = (v, mission) => [mission.fromPort, mission.toPort].filter(Boolean).every((id) => portAccepts(id, v));
 
 // The active vessel if it works for this mission, otherwise the first one that does.
 export function chooseVessel(profile, mission) {
@@ -135,8 +136,11 @@ export function selectVessel(profile, id) {
 }
 
 function portNameLimit(mission) {
-  const tight = [mission.fromPort, mission.toPort].filter(Boolean).map(getPort).sort((a, b) => a.maxLength - b.maxLength)[0];
-  return `${tight.name} only takes vessels up to ${tight.maxLength} m, and none of your licensed vessels fit.`;
+  const ports = [mission.fromPort, mission.toPort].filter(Boolean).map(getPort);
+  const small = ports.find((p) => p.minLength > 0);
+  if (small) return `${small.name} only takes vessels of ${small.minLength} m and up, and none of your licensed vessels qualify.`;
+  const tight = ports.sort((a, b) => portMaxLength(a) - portMaxLength(b))[0];
+  return `${tight.name} only takes vessels up to ${portMaxLength(tight)} m, and none of your licensed vessels fit.`;
 }
 
 // Can the player start this mission right now? { ok, reason }
@@ -219,6 +223,7 @@ const TIPS = {
   Safety: 'Ease off before obstacles. Contact above 1 m/s damages the hull, so reverse (S) to brake early.',
   Navigation: 'Each respawn costs points. Follow the yellow beams and keep clear of piers, buoys and islands.',
   Timing: 'Hold a steady cruising speed between gates. Only slow down for the berth.',
+  Cargo: 'Plan turns early and use gentle rudder: big ships slide sideways, and hard turns at speed shift the cargo.',
   Docking: 'Approach slowly and in line with the pier. Get under 3 knots, then reverse to stop inside the green box.',
 };
 

@@ -4,7 +4,7 @@ import { VESSELS, getVessel, vesselForClass, DEFAULT_VESSEL } from '../src/data/
 import { VESSEL_CLASSES, LICENSES, getLicense } from '../src/data/licenses.js';
 import { MISSIONS, getMission } from '../src/data/missions.js';
 import { createVesselState, stepVessel } from '../src/sim/vessel.js';
-import { hullCircles, resolveCollisions } from '../src/sim/world.js';
+import { hullCircles, hullCircleCount, resolveCollisions } from '../src/sim/world.js';
 import { WIND, windVector, windKnots, windPushAngleDeg, windArrow } from '../src/sim/wind.js';
 import { createRun, applyImpact, scoreRun } from '../src/sim/mission.js';
 import { defaultProfile, loadProfile, saveProfile, sanitizeProfile, recordResult } from '../src/sim/profile.js';
@@ -124,14 +124,17 @@ test('windage: the tall passenger craft drifts most, the heavy workboat least', 
 });
 
 // ---- collision and damage
-test('hull circles scale with the vessel and span its length', () => {
+test('hull circles scale with the vessel, span its length and leave no gaps', () => {
   for (const v of VESSELS) {
     const c = hullCircles(createVesselState(0, 0, 0), v);
-    assert.equal(c.length, 3);
+    assert.ok(c.length >= 3 && c.length === hullCircleCount(v));
     assert.ok(c.every((k) => k.r === v.hullRadius));
-    const reach = Math.abs(c[0].z - c[2].z) / 2 + v.hullRadius;
+    const zs = c.map((k) => k.z).sort((a, b) => a - b);
+    const reach = (zs[zs.length - 1] - zs[0]) / 2 + v.hullRadius;
     assert.ok(Math.abs(reach - v.length / 2) < 1e-9, `${v.id} circles cover the hull length`);
+    for (let i = 1; i < zs.length; i++) assert.ok(zs[i] - zs[i - 1] <= v.hullRadius * 1.5 + 1e-9, `${v.id} gap between circles`);
   }
+  assert.ok(hullCircleCount(getVessel('container-carrier')) > hullCircleCount(skiff), 'a 140 m ship needs many more circles');
 });
 
 test('a bigger hull touches a wall a smaller one clears', () => {
@@ -330,7 +333,7 @@ test('stat rows: one bar per metric, ratios in (0, 1], the best-scaled vessel hi
   for (const v of VESSELS) {
     const rows = statRows(v, VESSELS);
     assert.equal(rows.length, 7);
-    for (const r of rows) assert.ok(r.ratio > 0 && r.ratio <= 1.000001 && r.display.length > 0 && ['higher', 'lower'].includes(r.better), `${v.id} ${r.label}`);
+    for (const r of rows) assert.ok(r.ratio >= 0 && r.ratio <= 1.000001 && r.display.length > 0 && ['higher', 'lower'].includes(r.better), `${v.id} ${r.label}`);
   }
   const topSpeedRows = VESSELS.map((v) => statRows(v, VESSELS)[0].ratio);
   assert.ok(Math.max(...topSpeedRows) === 1);

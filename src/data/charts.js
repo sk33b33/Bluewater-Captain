@@ -20,6 +20,14 @@ export const NODES = [
   { id: 'R2', name: 'Reef south', x: 1000, z: 1900 },
   { id: 'T1', name: 'Tern north', x: 2300, z: 1000 },
   { id: 'TW', name: 'Tern west', x: 1950, z: 1500 },
+  // The deep-water channel: wide, dredged, and clear of the shoals. Only ships need it.
+  { id: 'CT', name: 'Terminal approach', x: 2150, z: 488, radius: 50, spread: 45 },
+  { id: 'CW', name: 'Channel west', x: 1500, z: 520, radius: 50, spread: 45 },
+  { id: 'DS1', name: 'Reef channel', x: 1500, z: 1500, radius: 50, spread: 45 },
+  { id: 'DS2', name: 'Driftwood channel north', x: 2300, z: 1760, radius: 50, spread: 45 },
+  { id: 'DT', name: 'Tern northwest', x: 1550, z: 1000, radius: 50, spread: 45 },
+  { id: 'TE', name: 'Tern east', x: 2600, z: 1500, radius: 50, spread: 45 },
+  { id: 'D', name: 'Driftwood approach', x: 2269, z: 2050, radius: 50, spread: 45 },
 ];
 
 export const EDGES = [
@@ -31,4 +39,5 @@ export const EDGES = [
   ['CO', 'C'],
   ['SS', 'R1'], ['R1', 'R2'], ['R2', 'S'], ['W2', 'R2'],
   ['CO', 'T1'], ['T1', 'TW'], ['TW', 'R2'], ['T1', 'R1'],
+  ['CT', 'CW'], ['CW', 'DS1'], ['CW', 'DT'], ['DS1', 'DS2'], ['DS2', 'D'], ['DT', 'TE'], ['TE', 'D'], ['DS1', 'R1'],
 ];

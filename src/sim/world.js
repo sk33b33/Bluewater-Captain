@@ -20,6 +20,8 @@ export const DOCKS = [
   { type: 'rect', name: 'Pine Isle pier', cx: 385, cz: 250, hx: 25, hz: 3 },
   { type: 'rect', name: 'Cape Quay pier', cx: 2650, cz: 300, hx: 50, hz: 5 },
   { type: 'rect', name: 'Marina pier', cx: 400, cz: 2650, hx: 5, hz: 50 },
+  { type: 'rect', name: 'Cape Terminal quay', cx: 2570, cz: 520, hx: 130, hz: 8 },
+  { type: 'rect', name: 'Driftwood quay', cx: 2300, cz: 2480, hx: 8, hz: 220 },
 ];
 export const ISLANDS = [
   { type: 'circle', name: 'Gull Rock', cx: 200, cz: -300, r: 60 },
@@ -30,6 +32,20 @@ export const ISLANDS = [
   { type: 'circle', name: 'Anvil Reef', cx: 1100, cz: 1300, r: 120 },
   { type: 'circle', name: 'Tern Island', cx: 2200, cz: 1500, r: 70 },
 ];
+
+// Shoals: shallow water only deep-draft vessels cannot cross. A vessel is blocked when its draft plus
+// UNDER_KEEL (clearance it needs) exceeds the shoal depth. Small boats sail over them freely.
+export const UNDER_KEEL = 1.0;
+export const SHOALS = [
+  { type: 'rect', name: 'Cape north shoal', cx: 2200, cz: 200, hx: 520, hz: 220, depth: 4.5 },
+  { type: 'rect', name: 'Cape south shoal', cx: 2200, cz: 760, hx: 520, hz: 200, depth: 4.5 },
+  { type: 'circle', name: 'Anvil shoal', cx: 1100, cz: 1300, r: 190, depth: 4.5 },
+  { type: 'circle', name: 'Tern shoal', cx: 2200, cz: 1500, r: 100, depth: 4.5 },
+  { type: 'rect', name: 'Driftwood east shoal', cx: 2600, cz: 2300, hx: 110, hz: 400, depth: 4.5 },
+];
+
+export const blocksVessel = (shoal, vessel) => vessel.draft + UNDER_KEEL > shoal.depth;
+export const shoalsFor = (vessel) => SHOALS.filter((sh) => blocksVessel(sh, vessel));
 
 // Route checkpoints; first is the harbor exit gate, last is the finish.
 export const ROUTE = [
@@ -47,13 +63,24 @@ export function staticObstacles() {
   return [...LAND, ...BREAKWATERS, ...DOCKS, ...ISLANDS];
 }
 
-// Three circles (bow, middle, stern) approximate the hull, sized from the vessel's length and radius.
-// Returns array of {x, z, r}.
+// The hull is a row of overlapping circles sized from the vessel's beam (hullRadius) and spread along its
+// length, so even a 140 m ship has no gaps. Short boats get three circles. Returns array of {x, z, r}.
+export function hullCircleCount(p) {
+  const reach = Math.max(0, p.length / 2 - p.hullRadius);
+  return Math.max(3, Math.ceil(reach / (p.hullRadius * 0.75)) * 2 + 1);
+}
+
 export function hullCircles(s, p) {
   const sin = Math.sin(s.heading);
   const cos = Math.cos(s.heading);
   const reach = Math.max(0, p.length / 2 - p.hullRadius);
-  return [reach, 0, -reach].map((off) => ({ x: s.x + sin * off, z: s.z - cos * off, r: p.hullRadius }));
+  const n = hullCircleCount(p);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const off = n === 1 ? 0 : reach - (2 * reach * i) / (n - 1);
+    out.push({ x: s.x + sin * off, z: s.z - cos * off, r: p.hullRadius });
+  }
+  return out;
 }
 
 // Push circle out of obstacle. Returns { nx, nz, depth } or null.

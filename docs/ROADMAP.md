@@ -101,6 +101,16 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** player can choose and complete different routes with clear objectives.
 
 ## Stage 7 — Larger commercial vessels
+**Status: implemented 2026-10-31, awaiting user testing and approval.** Acceptance criteria used:
+1. Two commercial vessels, a 90 m Coastal Freighter and a 140 m Feeder Carrier (container prototype), with handling an order of magnitude heavier than the small craft: 50 to 60 s to reach speed, 70 to 90 m to stop from 12 kn, 40 to 55 m turning circles, long coasting, huge windage on the container stack. (The workboat covers the roadmap's tug/ferry/workboat line; a separate tug or ferry is backlog.)
+2. Port channel constraints: shoal areas only deep-draft ships cannot cross (draft plus 1 m must fit the shoal depth), a dredged channel to two deep-water terminals, shown as pale shallows on the water, the chart and with a warning; groundings damage the hull.
+3. Berth constraints: Cape Quay gets a 220 m deep-water berth and a new Driftwood Terminal; ports show each vessel the berth that fits it, commercial terminals refuse small craft, and small harbors refuse ships. A long ship must fit inside the berth (its centre stays clear of the ends); docking accuracy is judged against the berth.
+4. Cargo objectives: cargo jobs have a Cargo score (20 points) that falls when hard turns at speed shift the load or the hull is damaged, with a HUD readout and warnings.
+5. A gated path: Large Vessel Endorsement (needs the Coastal Skipper and reputation 30; sea trials in each ship, written test, freighter exam), four deep-water contracts (container jobs also need reputation 45).
+6. Ship detail and scale cues: distinct freighter and container models (instanced container stacks), quay gantry cranes and container stacks, and a fleet size chart drawing every vessel to the same scale next to a 100 m reference.
+7. The chart and route planner are draft-aware: closed legs are drawn dotted red, a ship's route options stay in the channel, and routes are checked for shoals.
+**Gate:** large-vessel missions are playable and differentiated. Verified by a scripted captain on every ship route, a hull sweep with shoals active along every ship route, and browser tests.
+**Exclusions kept out:** tug assistance, a ferry, tides and changing depth, harbor pilots, multi-berth traffic.
 - Cargo ships, ferry/tug or workboat, and a container carrier prototype.
 - Port channel constraints, larger turning radius, draft/berth constraints, cargo objectives.
 - Improve ship detail and scale cues.
