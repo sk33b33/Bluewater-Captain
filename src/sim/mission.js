@@ -21,7 +21,8 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 // `vessel` sets the vessel id and, with the mission's weather, scales the deadline (mission deadlines are
 // written for the skiff in calm weather: slower vessels and rougher seas get more time).
-export function createRun(mission, vessel = null) {
+// `hull0` is the vessel's hull condition (percent) when the job starts; damage this run comes off it (see hullNow).
+export function createRun(mission, vessel = null, hull0 = 100) {
   return {
     mission,
     vesselId: vessel ? vessel.id : null,
@@ -35,7 +36,8 @@ export function createRun(mission, vessel = null) {
     time: 0,
     departed: false,
     route: createRouteState(),
-    integrity: 100,
+    integrity: 100, // damage taken THIS run (scoring uses it, so a worn hull is not punished twice)
+    hull0: clamp(hull0, 1, 100),
     collisions: 0,
     respawns: 0,
     speedingTime: 0, // seconds spent over a port speed limit
@@ -80,13 +82,18 @@ function fail(run, reason) {
 
 // Call after resolving a collision. `strength` is the vessel's hullStrength (lower = tougher hull).
 // Returns an event or null.
+// The vessel's real hull condition now: what it started with, less the damage done this run.
+export function hullNow(run) {
+  return Math.max(0, (run.hull0 ?? 100) - (100 - run.integrity));
+}
+
 export function applyImpact(run, impact, strength = 1) {
   if (run.phase !== 'underway' && run.phase !== 'docking') return null;
   if (impact < MIN_DAMAGE_IMPACT) return null;
   run.collisions += 1;
   run.integrity = Math.max(0, run.integrity - impact * DAMAGE_PER_MPS * strength);
-  if (run.integrity <= 0) return fail(run, 'hull');
-  return { type: 'damage', integrity: run.integrity };
+  if (run.integrity <= 0 || hullNow(run) <= 0) return fail(run, 'hull');
+  return { type: 'damage', integrity: run.integrity, hull: hullNow(run) };
 }
 
 export function registerRespawn(run) {

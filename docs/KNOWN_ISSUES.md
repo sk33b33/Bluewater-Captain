@@ -50,6 +50,14 @@
 - Docking accuracy at a terminal is scored against a 40 m offset, which is forgiving by design; the scripted captain typically gets only 8 to 9 of 25 docking points because it stops well short of the berth centre, so a careful player can do much better.
 - The chart is busier with the extra deep-water markers; near the harbor several markers overlap on a phone-sized map (use the list under "Your route").
 
+- Stage 8 estimates: repair and upgrade prices, the +35 percent featured bonus, the 20 and 50 percent wreck and patch levels and the hint wording are unplayed. Hull carry-over may feel punishing for new players or trivial for rich ones.
+- Upgrades are flat multipliers with no visual change on the boat; engine tune-up makes heavy ships even harder to stop.
+- Featured contracts rotate with your finished-job count, so a player who repeats one job sees the same two featured contracts until they finish others.
+- Only two heavy-weather jobs: a rough or moderate sea passenger job was tried and the scripted captain could not complete it within the deadline, so it is not offered. The skiff has no heavy-weather job.
+- The briefing deadline uses the base vessel; an engine tune-up changes the sea effect slightly, so the in-run deadline can differ by a second or two.
+- Text size uses CSS `zoom` (Firefox before version 126 ignores it). Colour-blind palettes, controller remapping and localisation are not done. Not tested with a screen reader.
+- Hints are one-line banners and can be missed; there is no replay of hints.
+
 ## Risk register
 | ID | Risk | Likelihood | Impact | Mitigation |
 |----|------|-----------|--------|-----------|

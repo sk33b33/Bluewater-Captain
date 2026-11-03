@@ -32,7 +32,7 @@ async function open(browser, url, profile) {
   // ---- novice: reputation gate
   {
     const { ctx, page, errors } = await open(browser, server.url, novice);
-    check((await page.locator('.mcard').count()) === 22, 'board lists 22 missions');
+    check((await page.locator('.mcard').count()) === 24, 'board lists 24 missions');
     check((await page.locator('.mcard.locked[data-id="cape-parcels"]').count()) === 1, 'Cape Quay Parcel Run is locked at reputation 0');
     check(/reputation 5/.test(await page.textContent('.mcard[data-id="cape-parcels"] .lock-note')), 'locked card explains the reputation needed');
     check((await page.locator('.mcard.locked[data-id="supply-run"]').count()) === 0, 'the short supply run is open with just the permit');

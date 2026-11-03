@@ -154,3 +154,8 @@ Follow the system boundaries listed above. Specific choices:
 - **Docking**: `evaluateDock(vessel, berth, length)` keeps a long ship's centre clear of the berth ends; berths may set `maxOffset`.
 - **Rendering**: shoal tint uses the green channel of the baked shore texture; ship models use instanced container stacks; quay cranes are merged into one mesh and container stacks on quays are instanced. Camera distance comes from the vessel.
 - **Tests**: `tests/ships.test.js` (ship handling, shoals, ports, berth fit, cargo, licensing, route sweeps with shoals) and `tests/e2e/ships.cjs`.
+
+# Stage 8 Update: career economy
+- `src/sim/career.js` (pure): ranks, cost factor, hull read and record, repair, free patch, upgrade purchase and `applyUpgrades`, featured rotation. `src/data/upgrades.js` holds the upgrade data. `src/sim/hints.js` holds the hint data and `nextHint`.
+- Profile v4 adds `hull`, `upgrades`, `jobs`, `hintsSeen`. `createRun(mission, vessel, hull0)` stores the starting hull; `hullNow(run)` is the real condition; `integrity` stays "damage this run" for scoring. `save.js` persists `hull0`.
+- `main.js`: `startMission` applies upgrades to the base vessel and the featured bonus (base reward kept), `finish` and `failMission` record the hull, the tick drives hints from a play clock, and the Fleet screen hosts repairs and upgrades. Accessibility settings are body classes (`ui-large`, `ui-xlarge`, `hc`).

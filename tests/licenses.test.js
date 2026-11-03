@@ -240,7 +240,7 @@ test('profile v2 round-trips licenses through save and load', () => {
   applyExamOutcome(p, permit, fakeResult(90), { passed: true }, 555);
   saveProfile(st, p);
   const q = loadProfile(st);
-  assert.equal(q.version, 3);
+  assert.equal(q.version, 4);
   assert.equal(isHeld(q, permit.id), true);
   assert.equal(q.licenses[permit.id].heldAt, 555);
   assert.equal(q.licenses[permit.id].practical.attempts, 1);
@@ -251,7 +251,7 @@ test('profile v2 round-trips licenses through save and load', () => {
 test('migration: a Stage 2 save is kept, and players who ran contracts keep access', () => {
   const v1 = { version: 1, credits: 400, reputation: 7, xp: 120, completed: { 'supply-run': { plays: 2, bestScore: 90, bestGrade: 'S', bestTime: 100 } } };
   const p = loadProfile(store(JSON.stringify(v1)));
-  assert.equal(p.version, 3);
+  assert.equal(p.version, 4);
   assert.equal(p.credits, 400);
   assert.equal(isHeld(p, 'small-craft-permit'), true);
   assert.equal(p.licenses['small-craft-permit'].grandfathered, true);

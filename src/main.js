@@ -12,7 +12,7 @@ import { distanceToObstacle } from './sim/shore.js';
 import { MISSIONS, BERTHS, getMission } from './data/missions.js';
 import { LICENSES, getLicense } from './data/licenses.js';
 import { SMALL_CRAFT_QUESTIONS, COASTAL_SKIPPER_QUESTIONS, LARGE_VESSEL_QUESTIONS } from './data/quiz.js';
-import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, zoneAt, PORT_ZONES, DOCK, CARGO_ALLOWANCE } from './sim/mission.js';
+import { createRun, hullNow, stepRun, applyImpact, registerRespawn, abortRun, respawnPose, scoreRun, evaluateDock, zoneAt, PORT_ZONES, DOCK, CARGO_ALLOWANCE } from './sim/mission.js';
 import { findRoutes, routeFromPath, nextMarkers, isComplete, validatePath, planMission, estimateSeconds } from './sim/routes.js';
 import { PORTS } from './data/ports.js';
 import { createChart } from './ui/chart.js';
@@ -32,6 +32,9 @@ import { createAudio } from './audio.js';
 import { createHud } from './ui/hud.js';
 import { createMenus } from './ui/menus.js';
 import { setupTouchControls } from './ui/touch.js';
+import { applyUpgrades, upgradesOf, hullOf, recordHull, featuredIds, FEATURED_BONUS, rankFor, repairHull, repairCost, patchHull, canPatch, buyUpgrade, upgradePrice, PATCH_LEVEL } from './sim/career.js';
+import { UPGRADES } from './data/upgrades.js';
+import { nextHint } from './sim/hints.js';
 
 const STEP = 1 / 60;
 const settings = loadSettings();
@@ -130,6 +133,7 @@ let quizLic = null;
 let quizQuestions = [];
 let mission = null;
 let run = null;
+let playClock = 0, hintAt = 0, steeredEver = false, throttledEver = false;
 let buoys = null;
 let berthGroup = null;
 let obstacles = baseObstacles;
@@ -166,12 +170,26 @@ function clearMission() {
   run = null;
 }
 
+// Featured contracts pay a bonus; the base reward is kept so retrying never stacks it.
+function featuredSet() {
+  const open = MISSIONS.filter((x) => x.kind === 'contract' && missionAccess(profile, x).ok).map((x) => x.id);
+  return new Set(featuredIds(profile, open));
+}
+function featureMission(m) {
+  const base = m.baseReward ?? m.reward;
+  const on = m.kind === 'contract' && featuredSet().has(m.id);
+  return { ...m, baseReward: base, reward: on ? Math.round(base * FEATURED_BONUS) : base, featured: on };
+}
+
 function startMission(m, vesselModel, restored = null) {  // `vesselModel` is the vessel definition; `vessel` (module level) is the boat's state
   clearMission();
+  m = featureMission(m);
+  vesselModel = applyUpgrades(getVessel(vesselModel.id) || vesselModel, upgradesOf(profile, vesselModel.id)); // fitted upgrades change the physics
   mission = m;
+  playClock = 0; hintAt = 0; steeredEver = false; throttledEver = false;
   setVessel(vesselModel);
   applyWeather(getWeather(m.weather));
-  run = restored ? restored.run : createRun(m, vesselModel);
+  run = restored ? restored.run : createRun(m, vesselModel, hullOf(profile, vesselModel.id));
   buoys = buildBuoys(m.waypoints, m.start);
   scene.add(buoys.group);
   obstacles = [...baseObstacles, ...shoalsFor(vp)]; // deep-draft ships also run aground on shoals
@@ -198,7 +216,7 @@ function startMission(m, vesselModel, restored = null) {  // `vesselModel` is th
 
 const KIND_ORDER = { training: 0, contract: 1, exam: 2 };
 function boardEntries() {
-  return [...MISSIONS].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).map((m) => ({ mission: m, access: missionAccess(profile, m) }));
+  return [...MISSIONS].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).map((m) => ({ mission: featureMission(m), access: missionAccess(profile, m) }));
 }
 function heldNames() {
   return LICENSES.filter((l) => isHeld(profile, l.id)).map((l) => l.name);
@@ -206,7 +224,7 @@ function heldNames() {
 function showBoard() {
   mode = 'board';
   const sv = readSave(storage);
-  menus.showBoard(profile, boardEntries(), heldNames(), (getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL)).name, sv ? describeSave(sv) : null);
+  menus.showBoard(profile, boardEntries(), heldNames(), (getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL)).name, sv ? describeSave(sv) : null, rankFor(profile.reputation).name);
 }
 
 function enterBoard() {
@@ -233,6 +251,7 @@ function ensureRoute(m, vessel) {
 }
 
 function showBriefing(m, keepVessel = false) {
+  m = featureMission(m);
   selected = m;
   mode = 'briefing';
   chart.hide();
@@ -254,7 +273,7 @@ function showBriefing(m, keepVessel = false) {
     routeText: briefingRoute ? `${briefingRoute.name}: ${km(briefingRoute.length)}${briefingRoute.hazards.length ? ', with a narrow passage' : ''}` : '',
     forecast: forecastText(wx),
     seaText: briefingVessel ? seaEffectText(wx, briefingVessel) : '',
-    tip: wx.tip,
+    tip: wx.tip + (briefingVessel && hullOf(profile, briefingVessel.id) < 70 ? ` Your ${briefingVessel.name} is at ${Math.round(hullOf(profile, briefingVessel.id))}% hull: a hard knock could wreck her. Repair on the Fleet screen first.` : ''),
   });
 }
 
@@ -328,13 +347,13 @@ function openChart(planning) {
   }
 }
 
-function showFleet() {
+function showFleet(note = '') {
   clearMission();
   setPlaying(false);
   setVessel(getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL));
   applyWeather(getWeather('calm'));
   mode = 'fleet';
-  menus.showFleet(profile, fleetStatus(profile));
+  menus.showFleet(profile, fleetStatus(profile), note);
 }
 
 function showLicenses() {
@@ -384,6 +403,7 @@ function finish() {
   audio.play('chime');
   audio.play('horn', vp);
   const result = scoreRun(run);
+  recordHull(profile, vp.id, hullNow(run));
   const prev = profile.completed[mission.id];
   const newBest = !prev || result.total > prev.bestScore;
   recordResult(profile, mission.id, result);
@@ -399,7 +419,18 @@ function finish() {
   }
   mode = 'result';
   setPlaying(false);
-  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam, vesselName: vp.name, routeText: routeSummary(mission, result) });
+  menus.showResult(mission, result, { newBest, bestGrade: rec.bestGrade, bestScore: rec.bestScore, bestTime: rec.bestTime, plays: rec.plays, credits: profile.credits, tips: coachingTips(result), exam, vesselName: vp.name, routeText: routeSummary(mission, result) + careerNote() });
+}
+
+function careerNote() {
+  const v = getVessel(vp.id);
+  const hull = hullOf(profile, vp.id);
+  const bits = [];
+  if (mission.featured) bits.push('Featured contract bonus included.');
+  if (hull < 100) bits.push(`Hull condition ${Math.round(hull)}%: repairs cost ${repairCost(profile, v)} credits on the Fleet screen.`);
+  const rank = rankFor(profile.reputation);
+  bits.push(`Rank: ${rank.name}${rank.next ? ` (${rank.next.needs} reputation to ${rank.next.name})` : ''}.`);
+  return ' ' + bits.join(' ');
 }
 
 function routeSummary(m, result) {
@@ -410,6 +441,7 @@ function routeSummary(m, result) {
 
 function failMission(reason) {
   clearSave(storage);
+  if (run) { recordHull(profile, vp.id, hullNow(run), reason === 'hull'); saveProfile(storage, profile); }
   audio.play('fail');
   mode = 'result';
   setPlaying(false);
@@ -431,7 +463,7 @@ function handleEvents(events) {
       audio.play('beep');
       hud.warn(`Slow down: ${e.zone.name} limit is ${Math.round(e.zone.knots)} knots`, 2500);
     } else if (e.type === 'damage') {
-      hud.warn(`Collision! Hull ${Math.round(e.integrity)}%`, 1500);
+      hud.warn(`Collision! Hull ${Math.round(e.hull ?? e.integrity)}%`, 1500);
     } else if (e.type === 'complete') {
       finish();
     } else if (e.type === 'failed') {
@@ -455,6 +487,19 @@ const menus = createMenus({
   onBoard: () => enterBoard(),
   onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission, vp); },
   onFleet: () => showFleet(),
+  onRepair: (id) => {
+    const v = getVessel(id);
+    const r = v && repairHull(profile, v);
+    if (r && r.ok) saveProfile(storage, profile);
+    showFleet(r ? (r.ok ? `Repaired to ${Math.round(r.hull)}% for ${r.spent} credits` : r.reason) : '');
+  },
+  onPatch: (id) => { const v = getVessel(id); if (v && patchHull(profile, v)) { saveProfile(storage, profile); showFleet(`Emergency patch fitted: hull at ${PATCH_LEVEL}%`); } },
+  onBuyUpgrade: (vid, uid) => {
+    const v = getVessel(vid);
+    const r = v ? buyUpgrade(profile, v, uid) : { ok: false, reason: 'Unknown vessel.' };
+    if (r.ok) saveProfile(storage, profile);
+    showFleet(r.ok ? `Upgrade fitted for ${r.price} credits` : r.reason);
+  },
   onResumeSave: () => {
     const snap = readSave(storage);
     const r = snap && resume(snap);
@@ -563,6 +608,18 @@ sens.value = String(settings.sensitivity);
 qualitySel.value = settings.quality;
 fpsBox.checked = settings.showFps;
 calm.checked = settings.reducedMotion;
+const uiScaleEl = document.getElementById('set-uiscale');
+const contrastEl = document.getElementById('set-contrast');
+function applyAccessibility() {
+  document.body.classList.toggle('ui-large', settings.uiScale === 1.15);
+  document.body.classList.toggle('ui-xlarge', settings.uiScale === 1.3);
+  document.body.classList.toggle('hc', settings.highContrast);
+}
+uiScaleEl.value = String(settings.uiScale);
+contrastEl.checked = settings.highContrast;
+uiScaleEl.addEventListener('change', () => { settings.uiScale = parseFloat(uiScaleEl.value); saveSettings(); applyAccessibility(); });
+contrastEl.addEventListener('change', () => { settings.highContrast = contrastEl.checked; saveSettings(); applyAccessibility(); });
+applyAccessibility();
 const audio = createAudio({ volume: settings.volume, muted: settings.muted });
 const volumeEl = document.getElementById('set-volume');
 const muteEl = document.getElementById('set-mute');
@@ -586,7 +643,7 @@ calm.addEventListener('change', () => { settings.reducedMotion = calm.checked; s
 
 // Older saves used a Low graphics checkbox.
 function loadSettings() {
-  const d = { sensitivity: 1, quality: 'auto', showFps: false, reducedMotion: false, volume: 0.6, muted: false };
+  const d = { sensitivity: 1, quality: 'auto', showFps: false, reducedMotion: false, volume: 0.6, muted: false, uiScale: 1, highContrast: false };
   try {
     const raw = JSON.parse(localStorage.getItem('bwc-settings') || '{}');
     const out = { ...d, ...raw };
@@ -595,6 +652,8 @@ function loadSettings() {
     delete out.lowGraphics;
     out.volume = Number.isFinite(out.volume) ? Math.min(1, Math.max(0, out.volume)) : 0.6;
     out.muted = out.muted === true;
+    out.uiScale = [1, 1.15, 1.3].includes(out.uiScale) ? out.uiScale : 1;
+    out.highContrast = out.highContrast === true;
     return out;
   } catch { return d; }
 }
@@ -698,7 +757,20 @@ function tick(dt) {
   if (edge === 'warn') hud.warn('Leaving the chart area: turn back', 600);
   if (edge === 'out') respawn('Out of bounds: returned to last safe point');
   events.push(...stepRun(run, vessel, dt, BERTHS));
+  playClock += dt;
+  if (Math.abs(inp.steer) > 0.1) steeredEver = true;
+  if (Math.abs(inp.throttle) > 0.1) throttledEver = true;
+  if (playClock - hintAt > 1) { hintAt = playClock; showHint(); }
   handleEvents(events);
+}
+
+// One first-time hint at a time, never while another message is up; remembered in the profile.
+function showHint() {
+  const h = nextHint(profile.hintsSeen, { jobs: profile.jobs, time: playClock, speed: Math.hypot(vessel.u, vessel.v), steered: steeredEver, throttled: throttledEver, phase: run.phase, cargo: !!run.cargoLimit, weatherId: run.weatherId, damaged: run.integrity < 85 });
+  if (!h) return;
+  profile.hintsSeen = [...(profile.hintsSeen || []), h.id];
+  saveProfile(storage, profile);
+  hud.warn(h.text, 6000);
 }
 
 function frame(now) {
@@ -831,7 +903,7 @@ function updateHud() {
     zone: zoneInfo(),
     cargo: run.cargoLimit ? { text: `Cargo ${Math.round(Math.max(0, 1 - run.roughTime / CARGO_ALLOWANCE) * 100)}%`, over: run.strained } : null,
     late: run.time > run.deadline,
-    hull: run.integrity,
+    hull: hullNow(run),
     bearingRel: (angleDiff(bearing, vessel.heading) * 180) / Math.PI,
     dock,
   });
@@ -842,6 +914,8 @@ window.__bwc = {
   vessel,
   get mode() { return mode; },
   get run() { return run; },
+  get selected() { return selected; },
+  get mission() { return mission; },
   get profile() { return profile; },
   BERTHS,
   LICENSES,

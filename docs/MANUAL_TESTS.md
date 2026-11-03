@@ -169,3 +169,12 @@ Ask for a test profile with the Large Vessel Endorsement if you do not want to e
 | 22 | Listen while sailing | Engine pitch rises with speed; Mute and Volume work; silent when paused. Judge the mix | |
 | 23 | Real gamepad | A confirms, B/Start pause, Y respawns once, triggers and stick drive | |
 | 24 | Real phone, every screen, portrait and landscape | Nothing overflows; buttons easy to tap; warnings readable | |
+| 25 | Crash into a pier hard, finish or abort, open Fleet | Hull condition below 100; repair price shown; Repair works | |
+| 26 | Start a job with a hull below 70 percent | Briefing warns you; HUD shows the real hull | |
+| 27 | Buy each upgrade on the skiff | Engine: quicker, harder to stop; plating: bumps hurt less; rudder: turns faster | |
+| 28 | Run out of credits with a wrecked hull | Free patch offered once | |
+| 29 | Look at the board over several jobs | Two Featured contracts that change; ranks rise with reputation | |
+| 30 | Play the Storm Gear Haul and Storm Cargo | Rough sea; harder but fair; pays more | |
+| 31 | Fresh profile: first two jobs | Hints appear once each (throttle, steer, braking) and do not cover the controls | |
+| 32 | Settings: Extra large text, High contrast | Everything readable, nothing cut off, on desktop and phone | |
+

@@ -38,7 +38,7 @@ async function open(browser, url, profile) {
   // ---- a licensed captain with the biggest ships
   {
     const { ctx, page, errors } = await open(browser, server.url, captain);
-    check((await page.locator('.mcard').count()) === 22, 'board lists 22 missions');
+    check((await page.locator('.mcard').count()) === 24, 'board lists 24 missions');
     check((await page.locator('.mcard.locked[data-id="coaster-cargo"]').count()) === 0 && (await page.locator('.mcard.locked[data-id="container-feeder"]').count()) === 0, 'deep-water contracts are open with the endorsement and reputation 80');
     check(/Route 3\.\d km/.test(await page.textContent('.mcard[data-id="container-feeder"]')), 'ship jobs show their route length');
 

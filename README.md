@@ -19,6 +19,11 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 ## Performance
 Open **Settings** from the mission board: pick a graphics quality (Auto lowers itself if the game runs slowly), tick **Show performance overlay** for a live frame rate, or press **Run benchmark** to measure Low, Medium and High on your device and get a recommendation.
 
+## Career
+- Damage to your boat carries over. Repair it, and buy upgrades (engine tune-up, hull plating, rudder kit), on the **Fleet** screen. If you are broke and wrecked you can take a free emergency patch.
+- Your reputation sets your rank. Two **Featured** contracts pay 35 percent extra and change as you finish jobs. Heavy-weather jobs pay more.
+- Short hints appear the first time something matters. Settings has text size and high contrast.
+
 ## Saving, backup and sound
 - A mission in progress is saved automatically every 5 s of sailing, on pause and when the tab is hidden. After a reload the mission board offers **Resume** (it starts paused) or **Discard**. Finishing or aborting clears the save.
 - **Settings, Save backup** downloads a JSON file of your progress; **Load backup** asks for confirmation before replacing it. Use it to move progress between browsers or devices.
@@ -39,7 +44,8 @@ Open **Settings** from the mission board: pick a graphics quality (Auto lowers i
 
 ## Test
 ```
-npm test                                   # 224 unit tests (vessels and ships, weather, performance tools, ports and routes, shoals, collision, missions, docking, scoring, cargo, licenses, quiz, profile)
+npm test                                   # 245 unit tests (vessels and ships, weather, performance tools, ports and routes, shoals, collision, missions, docking, scoring, cargo, licenses, quiz, profile)
+node tests/e2e/career.cjs                  # optional headless Stage 8 career test
 node tests/e2e/ships.cjs                   # optional headless ships / terminals / cargo test
 node tests/e2e/chart.cjs                   # optional headless chart / route-planning test
 node tests/e2e/weather.cjs                 # optional headless weather / quality / benchmark test

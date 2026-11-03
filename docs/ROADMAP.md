@@ -117,10 +117,19 @@ The stages below are sequential. Claude Code must stop at the end of each stage 
 **Gate:** large-vessel missions are playable and differentiated.
 
 ## Stage 8 — Content, career depth, and polish
+**Status: implemented 2026-11-03, awaiting user testing and approval.** Scope restated at the start of the stage (the roadmap line is broad, so it was cut to what fits one playable stage). Acceptance criteria used:
+1. **Economy and repairs:** hull damage now carries between jobs (per vessel). Repairs cost credits and scale with vessel size; a broke player with a wrecked hull gets a free patch so nobody is stuck. A hull wrecked on a job is towed in at 20 percent.
+2. **Upgrades:** three purchasable upgrades per vessel (engine tune-up, hull plating, rudder kit) that change the physics, priced by vessel size.
+3. **Repeatable career loop:** ranks from reputation (Deckhand to Commodore) and a rotating set of two featured contracts paying +35 percent, which changes as you finish jobs.
+4. **More mission content:** heavy-weather (rough sea) variants of the workboat haul and the freighter run, gated by reputation, proven completable by the scripted captain. (A rough or moderate-sea passenger job was tried and the scripted captain could not finish it within the deadline, so it was left out.)
+5. **Tutorial:** seven contextual first-time hints (throttle, steering, braking at the berth, cargo, heavy sea, fog, hull damage), each shown once and remembered; the basic ones stop after four jobs.
+6. **Accessibility:** text and panel size (Normal, Large, Extra large) and a high-contrast mode, both remembered; plus the existing reduced-motion option.
+7. **Save compatibility:** profile v4 migrates v1 to v3, backup files from v3 still load, and mid-mission saves from before this stage resume with a whole hull.
+**Gate:** release candidate scope is stable and documented. NOT yet met: needs your playtesting to confirm the economy numbers feel right.
+**Exclusions kept out (backlog):** new ports, a tug or ferry, fuel and supplies, a passenger comfort score, night, rain, tides and currents, localisation, a full tutorial mission, colour-blind palettes, controller remapping, vessel purchase or rental, and new music.
 - More mission types, port variety, sound design, UI polish, tutorials, accessibility.
 - Economy, repairs/upgrades, reputation, repeatable career loop.
 - Performance, QA, save compatibility, and bug fixing.
-**Gate:** release candidate scope is stable and documented.
 
 ## Stage 9 — Special vessel content and release preparation
 - Add original legendary/heritage vessels first.

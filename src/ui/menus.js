@@ -6,6 +6,8 @@ import { KIND_LABEL } from '../data/missions.js';
 import { VESSEL_CLASSES } from '../data/licenses.js';
 import { VESSELS } from '../data/vessels.js';
 import { statRows } from '../sim/handling.js';
+import { UPGRADES } from '../data/upgrades.js';
+import { hullOf, repairCost, canPatch, upgradesOf, upgradePrice, PATCH_LEVEL } from '../sim/career.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['start', 'board', 'briefing', 'result', 'pause', 'licenses', 'quiz', 'fleet', 'bench', 'chart'];
@@ -65,6 +67,50 @@ export function drawFleetScale(canvas, vessels) {
 }
 
 export function createMenus(h) {
+  // Hull condition, repairs and upgrades for one vessel on the Fleet screen.
+  function garageBlock(profile, v) {
+    const box = el('div', 'garage');
+    const hull = hullOf(profile, v.id);
+    const cost = repairCost(profile, v);
+    const row = el('div', 'urow');
+    const hullText = el('span', 'u-text', `Hull condition ${Math.round(hull)}%` + (hull < 100 ? `. Full repair ${cost} credits.` : ''));
+    hullText.id = `hull-${v.id}`;
+    row.appendChild(hullText);
+    if (hull < 100) {
+      const fix = el('button', 'ghost', `Repair (${Math.min(cost, profile.credits)} credits)`);
+      fix.type = 'button';
+      fix.id = `repair-${v.id}`;
+      fix.disabled = profile.credits <= 0;
+      fix.addEventListener('click', () => h.onRepair(v.id));
+      row.appendChild(fix);
+    }
+    if (canPatch(profile, v)) {
+      const patch = el('button', 'ghost', `Emergency patch (free, to ${PATCH_LEVEL}%)`);
+      patch.type = 'button';
+      patch.id = `patch-${v.id}`;
+      patch.addEventListener('click', () => h.onPatch(v.id));
+      row.appendChild(patch);
+    }
+    box.appendChild(row);
+    const owned = upgradesOf(profile, v.id);
+    for (const up of UPGRADES) {
+      const r = el('div', 'urow');
+      r.appendChild(el('span', 'u-text', `${up.name}: ${up.blurb}`));
+      if (owned.includes(up.id)) r.appendChild(el('span', 'fitted', 'Fitted'));
+      else {
+        const price = upgradePrice(up, v);
+        const buy = el('button', 'ghost', `Buy (${price})`);
+        buy.type = 'button';
+        buy.id = `buy-${v.id}-${up.id}`;
+        buy.disabled = profile.credits < price;
+        buy.addEventListener('click', () => h.onBuyUpgrade(v.id, up.id));
+        r.appendChild(buy);
+      }
+      box.appendChild(r);
+    }
+    return box;
+  }
+
   let resetArmed = false;
   const hideAll = () => SCREENS.forEach((id) => $(id).classList.add('hidden'));
   const show = (id) => { hideAll(); $(id).classList.remove('hidden'); };
@@ -122,11 +168,12 @@ export function createMenus(h) {
     showStart() { show('start'); },
 
     // entries: [{ mission, access: {ok, reason} }] in board order
-    showBoard(profile, entries, heldNames, vesselName, resumeText) {
+    showBoard(profile, entries, heldNames, vesselName, resumeText, rankText = '') {
       resetArmed = false;
       $('reset-note').classList.add('hidden');
       $('p-credits').textContent = String(profile.credits);
       $('p-rep').textContent = String(profile.reputation);
+      $('p-rank').textContent = rankText ? `(${rankText})` : '';
       $('p-xp').textContent = String(profile.xp);
       $('p-licenses').textContent = heldNames.length ? heldNames.join(', ') : 'none yet';
       $('p-vessel').textContent = vesselName;
@@ -148,6 +195,16 @@ export function createMenus(h) {
         const badge = el('span', done ? 'badge grade' : 'badge', done ? `Best ${done.bestGrade}` : 'New');
         badge.style.marginLeft = '8px';
         t.appendChild(badge);
+        if (m.featured && access.ok) {
+          const star = el('span', 'badge featured', 'Featured +35%');
+          star.style.marginLeft = '6px';
+          t.appendChild(star);
+        }
+        if (m.storm) {
+          const st = el('span', 'badge', 'Heavy weather');
+          st.style.marginLeft = '6px';
+          t.appendChild(st);
+        }
         if (!access.ok) {
           const lock = el('span', 'badge lock', 'Locked');
           lock.style.marginLeft = '6px';
@@ -329,7 +386,8 @@ export function createMenus(h) {
     },
 
     // rows: from fleetStatus(profile)
-    showFleet(profile, rows) {
+    showFleet(profile, rows, note = '') {
+      $('fleet-credits').textContent = `Credits ${profile.credits}${note ? '. ' + note : ''}`;
       const list = $('fleet-list');
       list.textContent = '';
       drawFleetScale($('fleet-scale'), rows.map((r) => r.vessel));
@@ -363,6 +421,7 @@ export function createMenus(h) {
         use.addEventListener('click', () => h.onUseVessel(v.id));
         actions.appendChild(use);
         card.appendChild(actions);
+        if (r.permitted || r.selectable) card.appendChild(garageBlock(profile, v));
         if (!r.selectable) card.appendChild(el('p', 'lock-note', `${r.reason}. Earn it on the Licenses screen.`));
         list.appendChild(card);
       }

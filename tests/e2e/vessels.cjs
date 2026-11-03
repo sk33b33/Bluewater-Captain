@@ -32,7 +32,7 @@ async function open(browser, url, profile) {
   {
     const base = { version: 3, credits: 500, reputation: 5, xp: 0, completed: {}, vessel: 'small-motorboat', licenses: { 'small-craft-permit': licensed() } };
     const { ctx, page, errors } = await open(browser, server.url, base);
-    check((await page.locator('.mcard').count()) === 22, 'board lists 22 missions');
+    check((await page.locator('.mcard').count()) === 24, 'board lists 24 missions');
     check((await page.textContent('#p-vessel')) === 'Harbor Skiff', 'board shows the active vessel');
     check((await page.locator('.mcard.locked[data-id="workboat-haul"]').count()) === 1, 'Heavy Gear Haul is locked with only the permit');
     check(/Coastal Skipper/.test(await page.textContent('.mcard[data-id="workboat-haul"] .lock-note')), 'locked card names the license that unlocks the vessel');

@@ -345,6 +345,17 @@ export const MISSIONS = [
   },
 ];
 
+// Stage 8: heavy-weather variants of existing contracts (same ports and routes, a rough sea, better pay).
+// Only vessels that can cope are allowed; the tests run the scripted captain on each one with every permitted vessel.
+const STORMS = [
+  { from: 'workboat-haul', id: 'storm-haul', title: 'Storm Gear Haul', summary: 'The same heavy gear, but a gale is blowing in. Only the workboat is steady enough. Slow down, give yourself room and keep her off the rocks.', reward: 1500, rep: 9, xp: 190, minReputation: 8, risk: 'High' },
+  { from: 'coaster-cargo', id: 'storm-cargo', title: 'Storm Cargo to Driftwood', summary: 'A time-critical load for Driftwood Terminal in a rough sea. The freighter is heavy enough to cope, but hard turns will still shift the cargo.', reward: 5200, rep: 15, xp: 420, minReputation: 36, risk: 'High' },
+];
+for (const st of STORMS) {
+  const base = MISSIONS.find((m) => m.id === st.from);
+  MISSIONS.push({ ...base, id: st.id, title: st.title, summary: st.summary, reward: st.reward, rep: st.rep, xp: st.xp, minReputation: st.minReputation, risk: st.risk, weather: st.weather || 'rough', storm: true });
+}
+
 // Fill in what a planned mission derives from its ports: names, start pose, berth and the default
 // (shortest) route with its deadline. The player may replace the route on the chart (see sim/routes.js planMission).
 for (const m of MISSIONS) {

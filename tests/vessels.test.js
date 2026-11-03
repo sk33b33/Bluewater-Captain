@@ -285,14 +285,14 @@ test('profile v3 stores the active vessel across save and load', () => {
   selectVessel(p, 'workboat');
   saveProfile(st, p);
   const q = loadProfile(st);
-  assert.equal(q.version, 3);
+  assert.equal(q.version, 4);
   assert.equal(q.vessel, 'workboat');
 });
 
 test('migration: v2 saves keep everything and default to the skiff; bad vessel ids are ignored', () => {
   const v2 = { version: 2, credits: 321, reputation: 8, xp: 50, completed: {}, licenses: { 'small-craft-permit': { held: true, heldAt: 5, grandfathered: false, written: { attempts: 1, bestScore: 5, passed: true }, practical: { attempts: 1, bestScore: 80, passed: true } } } };
   const p = loadProfile(store(JSON.stringify(v2)));
-  assert.equal(p.version, 3);
+  assert.equal(p.version, 4);
   assert.equal(p.credits, 321);
   assert.equal(p.licenses['small-craft-permit'].held, true);
   assert.equal(p.vessel, DEFAULT_VESSEL);

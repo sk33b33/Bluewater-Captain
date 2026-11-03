@@ -1,20 +1,21 @@
 import { getVessel, DEFAULT_VESSEL } from '../data/vessels.js';
+import { getUpgrade } from '../data/upgrades.js';
 
 // Career profile: credits, reputation, XP, best results per mission and licenses.
-// v1 (Stage 2) had no licenses and v2 (Stage 3) no vessel choice; older saves are migrated on load. Storage is injected so it can be tested.
+// v1 (Stage 2) had no licenses, v2 (Stage 3) no vessel choice and v3 (Stage 7) no hull wear, upgrades or job count (Stage 8); older saves are migrated on load. Storage is injected so it can be tested.
 const KEY = 'bwc-profile';
-export const PROFILE_VERSION = 3;
+export const PROFILE_VERSION = 4;
 const LEGACY_CONTRACT_IDS = ['supply-run', 'return-run']; // v1 players who ran these keep access to them
 
 export function defaultProfile() {
-  return { version: PROFILE_VERSION, credits: 0, reputation: 0, xp: 0, completed: {}, licenses: {}, vessel: DEFAULT_VESSEL };
+  return { version: PROFILE_VERSION, credits: 0, reputation: 0, xp: 0, completed: {}, licenses: {}, vessel: DEFAULT_VESSEL, hull: {}, upgrades: {}, jobs: 0, hintsSeen: [] };
 }
 
 const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 export function sanitizeProfile(raw) {
   const p = defaultProfile();
-  if (!raw || typeof raw !== 'object' || (raw.version !== 1 && raw.version !== 2 && raw.version !== PROFILE_VERSION)) return p;
+  if (!raw || typeof raw !== 'object' || (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== PROFILE_VERSION)) return p;
   p.credits = Math.max(0, num(raw.credits));
   p.reputation = Math.max(0, num(raw.reputation));
   p.xp = Math.max(0, num(raw.xp));
@@ -30,6 +31,19 @@ export function sanitizeProfile(raw) {
     }
   }
   if (typeof raw.vessel === 'string' && getVessel(raw.vessel)) p.vessel = raw.vessel;
+  // Stage 8 fields (absent in v1 to v3, which simply start fresh).
+  if (raw.hull && typeof raw.hull === 'object') {
+    for (const [id, h] of Object.entries(raw.hull)) if (getVessel(id) && typeof h === 'number' && Number.isFinite(h)) p.hull[id] = Math.min(100, Math.max(1, h));
+  }
+  if (raw.upgrades && typeof raw.upgrades === 'object') {
+    for (const [id, list] of Object.entries(raw.upgrades)) {
+      if (!getVessel(id) || !Array.isArray(list)) continue;
+      const ok = [...new Set(list.filter((u) => getUpgrade(u)))];
+      if (ok.length) p.upgrades[id] = ok;
+    }
+  }
+  p.jobs = Math.max(0, Math.floor(num(raw.jobs)));
+  if (Array.isArray(raw.hintsSeen)) p.hintsSeen = [...new Set(raw.hintsSeen.filter((h) => typeof h === 'string').map((h) => h.slice(0, 40)))].slice(0, 40);
   if (raw.version === 1) {
     // Migration: Stage 2 had no licenses. Grant the permit to anyone who already completed a contract run.
     if (LEGACY_CONTRACT_IDS.some((id) => p.completed[id])) {
@@ -74,6 +88,7 @@ export function recordResult(profile, missionId, result) {
   profile.credits += result.reward;
   profile.reputation += result.reputation;
   profile.xp += result.xp;
+  profile.jobs = (profile.jobs || 0) + 1;
   const prev = profile.completed[missionId];
   const bestScore = prev ? Math.max(prev.bestScore, result.total) : result.total;
   const bestGrade = prev && GRADE_ORDER.indexOf(prev.bestGrade) > GRADE_ORDER.indexOf(result.grade) ? prev.bestGrade : result.grade;
@@ -113,7 +128,7 @@ export function importProfile(text) {
   if (!raw || raw.app !== EXPORT_APP) return { ok: false, error: 'This is not a Bluewater Captain backup file.' };
   if (raw.exportVersion !== EXPORT_VERSION) return { ok: false, error: 'This backup comes from a different version of the game.' };
   const p = raw.profile;
-  if (!p || typeof p !== 'object' || ![1, 2, PROFILE_VERSION].includes(p.version)) return { ok: false, error: 'The saved progress inside the file is missing or too old to read.' };
+  if (!p || typeof p !== 'object' || ![1, 2, 3, PROFILE_VERSION].includes(p.version)) return { ok: false, error: 'The saved progress inside the file is missing or too old to read.' };
   return { ok: true, profile: sanitizeProfile(p) };
 }
 

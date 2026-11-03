@@ -26,7 +26,7 @@ export function snapshot(run, vessel, mission, time, now = Date.now()) {
     vessel: { x: vessel.x, z: vessel.z, heading: vessel.heading, u: vessel.u, v: vessel.v, r: vessel.r, throttle: vessel.throttle, rudder: vessel.rudder },
     run: {
       phase: run.phase, time: run.time, departed: run.departed, deadline: run.deadline,
-      integrity: run.integrity, collisions: run.collisions, respawns: run.respawns,
+      integrity: run.integrity, hull0: run.hull0, collisions: run.collisions, respawns: run.respawns,
       speedingTime: run.speedingTime, speedViolations: run.speedViolations, inSpeedViolation: run.inSpeedViolation,
       dockHold: run.dockHold, roughTime: run.roughTime, strained: run.strained,
       dock: run.dock ? { centre: run.dock.centre, angleDeg: run.dock.angleDeg } : null,
@@ -57,7 +57,7 @@ export function sanitizeSnapshot(raw) {
     vessel: { x: v.x, z: v.z, heading: num(v.heading), u: clampNum(v.u, -30, 30), v: clampNum(v.v, -30, 30), r: clampNum(v.r, -3, 3), throttle: clampNum(v.throttle, -1, 1), rudder: clampNum(v.rudder, -1, 1) },
     run: {
       phase: r.phase, time: Math.max(0, num(r.time)), departed: bool(r.departed), deadline: Math.max(1, num(r.deadline, 1)),
-      integrity: clampNum(r.integrity, 0.01, 100, 100), collisions: Math.max(0, Math.floor(num(r.collisions))), respawns: Math.max(0, Math.floor(num(r.respawns))),
+      integrity: clampNum(r.integrity, 0.01, 100, 100), hull0: clampNum(r.hull0, 1, 100, 100), collisions: Math.max(0, Math.floor(num(r.collisions))), respawns: Math.max(0, Math.floor(num(r.respawns))),
       speedingTime: Math.max(0, num(r.speedingTime)), speedViolations: Math.max(0, Math.floor(num(r.speedViolations))), inSpeedViolation: bool(r.inSpeedViolation),
       dockHold: Math.max(0, num(r.dockHold)), roughTime: Math.max(0, num(r.roughTime)), strained: bool(r.strained),
       dock: r.dock && typeof r.dock === 'object' ? { centre: Math.max(0, num(r.dock.centre)), angleDeg: Math.max(0, num(r.dock.angleDeg)) } : null,
@@ -91,7 +91,7 @@ export function restoreRun(run, snap) {
   if (snap.run.phase === 'docking' && !m.dock) return false;
   Object.assign(run, {
     phase: snap.run.phase, time: snap.run.time, departed: snap.run.departed, deadline: snap.run.deadline,
-    integrity: snap.run.integrity, collisions: snap.run.collisions, respawns: snap.run.respawns,
+    integrity: snap.run.integrity, hull0: snap.run.hull0, collisions: snap.run.collisions, respawns: snap.run.respawns,
     speedingTime: snap.run.speedingTime, speedViolations: snap.run.speedViolations, inSpeedViolation: snap.run.inSpeedViolation,
     dockHold: snap.run.dockHold, roughTime: snap.run.roughTime, strained: snap.run.strained, dock: snap.run.dock,
   });

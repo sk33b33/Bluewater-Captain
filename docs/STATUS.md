@@ -1,24 +1,29 @@
 # Project Status
 
 ## Current stage
-Stage 7 — Larger commercial vessels. **Implemented; awaiting your hands-on testing and approval (stage gate).** Stages 1 to 6 remain open for tuning feedback.
+Stage 8 — Content, career depth and polish. **Implemented (reduced scope, see ROADMAP); awaiting your hands-on testing and approval (stage gate).** Stages 1 to 7 remain open for tuning feedback.
 
-## What was built (Stage 7)
-- **Two ships**: the 90 m Coastal Freighter and the 140 m Feeder Carrier (container prototype). They take about a minute to reach speed, 70 to 90 m to stop from 12 kn, turn in a 40 to 55 m circle and coast for hundreds of metres. Waves barely touch them but the container stack catches the wind.
-- **Deep-water terminals**: Cape Quay gained a 220 m deep-water berth and quay, and a new port, Driftwood Terminal, sits in the sheltered south-east bay. Gantry cranes and container stacks line the quays.
-- **Shoals and draft**: shallow areas (pale green on the water and the chart) that ships cannot cross; a dredged channel joins the terminals. A warning tells you when you are near the shallows, and a grounding damages the hull. The skiff, workboat and Cat sail straight over them.
-- **Port limits**: ships get the deep berth, small craft the old pier; Driftwood only takes vessels of 30 m and up; the harbors and marina refuse ships. A long ship must fit inside its berth.
-- **Cargo jobs**: four deep-water contracts (freighter and container). A new Cargo score and HUD readout tracks the load; hard turns at speed shift it. Plan turns early.
-- **Large Vessel Endorsement**: Coastal Skipper plus reputation 30, sea trials in each ship, a written test and a freighter exam (fee 800, at most 1 collision). Container jobs also need reputation 45.
-- **Scale cues**: a fleet size chart draws every vessel to the same scale with a 100 m reference; the chart shows shoals and closed legs; draft-aware route planning keeps ships in the channel.
+## What was built (Stage 8)
+- **Hull wear and repairs:** damage now carries from job to job, per vessel. Repair on the Fleet screen (cost scales with vessel size); a broke player with a wreck gets a free patch to 50 percent. A hull wrecked on a job is towed in at 20 percent.
+- **Upgrades:** engine tune-up, hull plating and rudder kit for every vessel, bought on the Fleet screen; they change the physics.
+- **Career loop:** ranks (Deckhand to Commodore) shown on the board, and two rotating featured contracts at +35 percent that change as you finish jobs.
+- **Content:** two heavy-weather contracts (Storm Gear Haul for the workboat, Storm Cargo to Driftwood for the freighter).
+- **Tutorial hints:** seven one-time contextual hints; the basic ones stop after four jobs.
+- **Accessibility:** text and panel size (three levels) and high contrast, both remembered.
+- **Compatibility:** profile v4; v1 to v3 profiles and backups load; older mid-mission saves resume.
+- **Fixed on the way:** hints used the run clock, which only starts once you move; they now use a play clock.
 
 ## Gap-closing pass (2026-11-03)
 Added mid-mission save and Resume, a progress backup file, procedural sound with volume and mute, edge-detected gamepad input, and a phone-layout audit with CSS fixes. See D-012 and the README. Verified by unit tests and headless Chromium (`extras.cjs`, `mobile.cjs`); not heard, not tried on a real pad or phone.
 
 ## Verified (cloud container, headless Chromium with software rendering)
-- `npm test`: 224/224 pass in about 4 seconds. New: ships are an order of magnitude heavier (pick-up, stopping, turning, ordering); sea and wind effects; ships reach top speed and stop; hull circles leave no gaps on a 140 m ship; shoals block exactly the vessels that need more water; a ship runs aground where the skiff does not; the channel is clear for the biggest ship; port variants and size limits both ways; berth fit and docking tolerance; cargo strain (counting, warning once, only on cargo jobs); cargo scoring weights and explanation; the Large Vessel Endorsement path and gates; route planning for ships (only deep legs, alternatives in both directions, hand-built routes rejected across shoals); `planMission` picks the right start and berth; **a hull sweep along every ship route with shoals active**; and the scripted captain on every ship route plus the exam and trials, with cargo unshifted and a clean hull on all but a small scrape on one route.
+- `npm test`: 245/245 pass in about 4 seconds. New: ships are an order of magnitude heavier (pick-up, stopping, turning, ordering); sea and wind effects; ships reach top speed and stop; hull circles leave no gaps on a 140 m ship; shoals block exactly the vessels that need more water; a ship runs aground where the skiff does not; the channel is clear for the biggest ship; port variants and size limits both ways; berth fit and docking tolerance; cargo strain (counting, warning once, only on cargo jobs); cargo scoring weights and explanation; the Large Vessel Endorsement path and gates; route planning for ships (only deep legs, alternatives in both directions, hand-built routes rejected across shoals); `planMission` picks the right start and berth; **a hull sweep along every ship route with shoals active**; and the scripted captain on every ship route plus the exam and trials, with cargo unshifted and a clean hull on all but a small scrape on one route.
 - Browser tests (headless Chromium over local HTTP): new `ships.cjs` (fleet, scale chart, harbors refuse ships, briefing advice, chart for a ship, planning, ship starts at the deep berth, HUD cargo and slow zone, cargo strain, grounding on a shoal, finishing at Driftwood, small craft still use the small pier, the endorsement path and trials) plus `chart`, `weather`, `vessels`, `license`, `mission`, `touch` updated for the bigger board. All seven suites passed against the final build.
 - Screenshots of the ships, quays, cranes, channel, shoals, chart and result screen reviewed by eye. A real bug found this way (ships starting at the small pier because the mission instance was built without the vessel) was fixed.
+
+## Stage 8 verification
+- `npm test`: 245/245. New (`tests/career.test.js`, 19 tests): ranks, cost scaling, repairs (partial, none when whole), the free patch, upgrade purchase and physics, plating reducing damage, hull carry-over without double punishment, saves with and without `hull0`, profile v4 migration and bad data, backups, featured rotation, storm jobs completable by the scripted captain (also with every upgrade fitted), hint triggers.
+- Browser: new `career.cjs` (rank, featured badge and no stacking on restart, storm labels, fleet repairs and upgrades persisting, the free patch, worn hull in the briefing, HUD and run, hint appears and is remembered, abort keeps damage, accessibility settings persist). `mobile`, `ships`, `chart`, `weather`, `vessels`, `license`, `mission`, `touch`, `extras` also pass against the final build (counts updated for the two new jobs).
 
 ## NOT verified
 - **Frame rate with ships, cranes and the larger scene on real GPUs.** The container ship and quays use instanced and merged meshes (a few draw calls each), but this is untested on your hardware. Please run **Settings, Run benchmark** again.
@@ -27,11 +32,13 @@ Added mid-mission save and Resume, a progress backup file, procedural sound with
 - The Stage 7 manual checklist has not been run by a human.
 
 ## Next action (needs the user)
+0. Stage 8 numbers are guesses: repair prices, upgrade prices, the +35 percent bonus, and whether hull carry-over feels fair or nagging. Please play a few jobs and tell me.
 1. Run the benchmark again and send me the three rows.
 2. Ask for a test profile with the endorsement (or earn it), take the freighter and the Feeder Carrier down the channel, and tell me whether they feel big and heavy but fair, whether the cargo strain is too strict, and whether the jobs are too long.
-3. Then approve Stage 8 (content, career depth and polish) or request tuning.
+3. Then approve Stage 9 (special vessel content and release preparation) or request tuning.
 
 ## Stage completion log
 - Stage 0: Done 2026-10-26 (engine changed to browser per D-005).
 - Stages 1 to 6: Implemented 2026-10-26 to 2026-10-29; gates not formally passed.
 - Stage 7: Implemented 2026-10-31; gate not yet passed.
+- Stage 8: Implemented 2026-11-03 (reduced scope); gate not yet passed.

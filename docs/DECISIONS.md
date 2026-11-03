@@ -97,3 +97,16 @@ Record each decision with date, context, options, decision, and consequences.
 - **Sound**: procedural Web Audio (no asset files, no licences); context created on the first user gesture; mapping from vessel mass and speed is pure and unit-tested (`src/sim/audiomap.js`).
 - **Gamepad**: button presses are edge-detected per frame (a level-triggered Y respawned every frame).
 - **Phone layout**: on touch the HUD is a flex column and warnings sit in the column rather than floating over it; buttons are at least 44 px; cards scroll.
+
+## D-013 — Stage 8 career economy (ACCEPTED as part of the Stage 8 build, 2026-11-03)
+- **Scope cut.** The roadmap line for Stage 8 is broad, so it was cut to: hull wear and repairs, upgrades, ranks, featured contracts, heavy-weather jobs, first-time hints and accessibility settings. The rest is backlog (see ROADMAP).
+- **Hull is a profile property per vessel**, not per run. A run keeps `integrity` as damage taken THIS run (scoring uses it, so a worn hull is not punished twice) and `hull0` as the starting condition; `hullNow = hull0 - damage` decides whether you are wrecked. `hull0` is saved with the mid-mission save and defaults to 100 for older saves.
+- **Never a dead end.** A wrecked hull on a job is recorded as 20 percent, and below 50 percent with too little money to repair the player may take a free patch back to 50 percent. Partial repairs are allowed.
+- **Pricing.** Repair is 4 credits per hull percent times a size factor `mass^0.22 / 1.09` (skiff 1, workboat 1.64, freighter 5.75, container carrier 7.3). Upgrades are 300 to 400 credits times the same factor. These are estimates: a heavy ship job pays 3000 to 5400, so ship repairs are meant to hurt without ruining you.
+- **Upgrades are multipliers over vessel data**, applied once in `startMission` from the base vessel (so retries and resumes never stack them). The data is never mutated.
+- **Featured contracts** are chosen from contracts you may start now, deterministically from your finished-job count (no clock, no network), +35 percent reward. The base reward is stored so a retry or restart cannot stack the bonus.
+- **Hints** are data (`src/sim/hints.js`) with a pure `nextHint`, driven by a play clock that runs from the start of a job (the run clock only starts once you move).
+- **Accessibility** uses CSS `zoom` on the cards and the HUD (supported by Chromium, Safari, and Firefox 126 and later) and a `body.hc` class that swaps the colour variables.
+- **Profile v4** adds `hull`, `upgrades`, `jobs` and `hintsSeen`; v1 to v3 profiles and backups load with those defaults.
+- Lesson: the slow-graphics toast covered the touch controls and swallowed touches (fixed in the gap-closing pass); hints and warnings must never sit over controls.
+
