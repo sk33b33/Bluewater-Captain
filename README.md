@@ -19,6 +19,11 @@ Then open `dist/index.html` in Chrome, Edge or Firefox. For a local server inste
 ## Performance
 Open **Settings** from the mission board: pick a graphics quality (Auto lowers itself if the game runs slowly), tick **Show performance overlay** for a live frame rate, or press **Run benchmark** to measure Low, Medium and High on your device and get a recommendation.
 
+## Saving, backup and sound
+- A mission in progress is saved automatically every 5 s of sailing, on pause and when the tab is hidden. After a reload the mission board offers **Resume** (it starts paused) or **Discard**. Finishing or aborting clears the save.
+- **Settings, Save backup** downloads a JSON file of your progress; **Load backup** asks for confirmation before replacing it. Use it to move progress between browsers or devices.
+- Sound (engine, water, wind, bumps, horn, alerts) is generated in the browser. Volume and Mute are in Settings.
+
 ## Controls
 | Input | Action |
 |---|---|
@@ -28,13 +33,13 @@ Open **Settings** from the mission board: pick a graphics quality (Auto lowers i
 | R | Respawn at last checkpoint (costs a few navigation points) |
 | Esc / Menu button | Pause: resume, restart or abort the mission, settings |
 | Mouse drag | Look around |
-| Gamepad | Left stick steer, triggers throttle, Y respawn |
+| Gamepad | Left stick steer, triggers throttle, A confirm, B/Start pause or resume, Y respawn |
 | Touch (phones/tablets) | Left lever: throttle (stays where set; Stop button zeroes it). Bottom-right bar: steer (springs back). Drag the water to look. Respawn button. |
-| Settings button | Camera sensitivity, low graphics, reduce camera motion |
+| Settings button (volume, mute, backup) | Camera sensitivity, low graphics, reduce camera motion |
 
 ## Test
 ```
-npm test                                   # 205 unit tests (vessels and ships, weather, performance tools, ports and routes, shoals, collision, missions, docking, scoring, cargo, licenses, quiz, profile)
+npm test                                   # 224 unit tests (vessels and ships, weather, performance tools, ports and routes, shoals, collision, missions, docking, scoring, cargo, licenses, quiz, profile)
 node tests/e2e/ships.cjs                   # optional headless ships / terminals / cargo test
 node tests/e2e/chart.cjs                   # optional headless chart / route-planning test
 node tests/e2e/weather.cjs                 # optional headless weather / quality / benchmark test

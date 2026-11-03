@@ -90,3 +90,10 @@ Record each decision with date, context, options, decision, and consequences.
 - **One license for both ships**: the Large Vessel Endorsement permits the freighter and the container carrier; the container jobs additionally need reputation 45, so the biggest ship is a later goal without a fourth license.
 - **Deadlines**: ship factors are 1.3 and 1.4; a 3.6 km ship job gets about 12 minutes for a vessel whose scripted-captain time is about 10 minutes.
 - **Geography**: the Seal Rocks, Anvil and Tern shoals, the Cape shoal bands, the Long Spit and the Driftwood bay were laid out and checked with scripts: every ship leg is swept with the real hull and the real shoals in the unit tests.
+
+## D-012 — Gap-closing pass: save, backup, sound, gamepad, phone layout (2026-11-03)
+- **Mid-mission save**: one slot (`bwc-save`), a snapshot of boat state and run state, written every 5 s of sim time, on pause and on page hide. It is validated and sanitised on load; the planned route is rebuilt and revalidated for the vessel. Resume starts paused. Unit tests show a resumed run ends with the same time, score and position as an uninterrupted one.
+- **Backup file**: versioned JSON (`bluewater-captain-backup-DATE.json`), 200 KB import cap, imports are validated and need confirmation. No server or account.
+- **Sound**: procedural Web Audio (no asset files, no licences); context created on the first user gesture; mapping from vessel mass and speed is pure and unit-tested (`src/sim/audiomap.js`).
+- **Gamepad**: button presses are edge-detected per frame (a level-triggered Y respawned every frame).
+- **Phone layout**: on touch the HUD is a flex column and warnings sit in the column rather than floating over it; buttons are at least 44 px; cards scroll.

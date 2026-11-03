@@ -30,7 +30,8 @@
   #badge { position: absolute; top: 104px; right: 16px; font-size: 12px; color: var(--muted); }
   .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,18,30,.62); z-index: 5; padding: 16px; }
   .overlay.hidden, .hidden { display: none; }
-  .card { background: #10283b; border: 1px solid #28506b; border-radius: 14px; padding: 28px 32px; max-width: 520px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .card { background: #10283b; border: 1px solid #28506b; border-radius: 14px; padding: 28px 32px; max-width: 520px; width: 100%; max-height: calc(100% - 24px); overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  @media (max-width: 480px) { .card { padding: 20px 18px; } }
   .card h1 { margin: 0 0 4px; font-size: 30px; }
   .card h2 { margin: 0 0 12px; font-size: 24px; }
   .card p { color: var(--muted); line-height: 1.5; margin: 8px 0; }
@@ -56,8 +57,9 @@
   .mcard .m { font-size: 13px; color: var(--muted); display: flex; gap: 6px 14px; flex-wrap: wrap; }
   .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #1f4560; color: var(--text); }
   .badge.grade { background: var(--accent); color: #1a1a1a; }
-  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0; font-size: 15px; }
-  dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; }
+  dl.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 12px 0; font-size: 15px; }
+  dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  @media (max-width: 480px) { dl.facts { grid-template-columns: 1fr; gap: 0; } dl.facts dt { margin-top: 8px; font-size: 13px; } }
   table.score { width: 100%; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
   table.score td { padding: 6px 4px; border-bottom: 1px solid #28506b; vertical-align: top; }
   table.score td.pts { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
@@ -66,6 +68,7 @@
   .reward { font-size: 17px; margin: 8px 0; } .reward b { color: var(--ok); font-variant-numeric: tabular-nums; }
   .fail-reason { font-size: 17px; margin: 10px 0; color: var(--danger); font-weight: 600; }
   button.danger { background: #7a2412; color: var(--text); }
+  .resume { background: #123a2a; border: 1px solid var(--ok); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
   .group-h { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 0 2px; }
   .group-h:first-child { margin-top: 0; }
   .mcard.locked { opacity: .72; border-style: dashed; }
@@ -100,6 +103,8 @@
   select { font: inherit; background: #1f4560; color: var(--text); border: 1px solid #3a6a8c; border-radius: 6px; padding: 6px 8px; max-width: 100%; }
   #perf { position: fixed; top: 60px; left: 16px; z-index: 9; font: 12px ui-monospace, Menlo, Consolas, monospace; background: rgba(0,0,0,.6); color: #cfe; padding: 3px 8px; border-radius: 6px; pointer-events: none; }
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 9; background: #10283b; border: 1px solid #3a6a8c; padding: 10px 16px; border-radius: 10px; max-width: min(92vw, 520px); font-size: 14px; }
+  #toast { pointer-events: none; }
+  body.is-touch.playing #toast { bottom: auto; top: 38%; text-align: center; }
   #hud-wind { font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
   .card.wide.chart-card { max-width: 980px; }
   .chart-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -147,11 +152,18 @@
   #t-respawn { right: max(18px, env(safe-area-inset-right, 0px)); bottom: calc(max(18px, env(safe-area-inset-bottom, 0px)) + 92px); }
   body.is-touch #hud-help { display: none; }
   body.is-touch .keys, body.is-touch .kbd-note { display: none; }
-  body.is-touch #hud-bottom { bottom: auto; top: 112px; left: 16px; gap: 8px; }
+  body.is-touch #hud { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 16px 0; }
+  body.is-touch #hud-top { position: static; width: calc(100% - 100px); }
+  body.is-touch #hud-bottom { position: static; gap: 8px; flex-wrap: wrap; }
   body.is-touch #badge { display: none; }
   body.is-touch #hud-objective { font-size: 15px; }
-  body.is-touch #hud-warning { top: 330px; }
-  body.is-touch #hud-dock { bottom: auto; top: 192px; width: min(340px, 90vw); }
+  body.is-touch #hud-warning { position: static; transform: none; display: none; max-width: 100%; text-align: left; padding: 6px 12px; font-size: 14px; }
+  body.is-touch #hud-warning.show { display: block; }
+  @media (max-height: 700px) { body.is-touch #hud:has(#hud-dock:not(.hidden)) #hud-bottom { display: none; } }
+  body.is-touch button { min-height: 44px; }
+  body.is-touch button.ghost { padding: 10px 16px; font-size: 14px; }
+  @media (max-height: 700px) { #t-throttle { height: 150px; } #t-stop, #t-respawn { } body.is-touch #hud-dock { font-size: 13px; padding: 6px 10px; } body.is-touch #dock-hint { min-height: 0; } }
+  body.is-touch #hud-dock { position: static; transform: none; width: min(340px, 100%); }
   body.is-touch .stat { min-width: 0; padding: 6px 10px; }
   body.is-touch .stat .v { font-size: 20px; }
   body.is-touch #hud-compass { width: 64px; }
@@ -159,7 +171,7 @@
   body.is-touch #hud-throttle { width: 70px; }
   .touch-note { display: none; }
   body.is-touch .touch-note { display: block; }
-  @media (max-height: 460px) { #t-throttle { height: 150px; } body.is-touch #hud-bottom { display: none; } body.is-touch #hud-dock { top: 70px; } }
+  @media (max-height: 460px) { #t-throttle { height: 150px; } body.is-touch #hud-bottom { display: none; } body.is-touch #hud-dock { margin-left: 100px; width: min(300px, 50vw); } }
   @media (max-width: 640px) { #hud-help { display: none; } .stat .v { font-size: 24px; } }
   @media (prefers-reduced-motion: reduce) { #hud-arrow { transition: none; } }
 </style>
@@ -226,6 +238,7 @@
     <div class="profile">
       <span>Credits <b id="p-credits">0</b></span><span>Reputation <b id="p-rep">0</b></span><span>XP <b id="p-xp">0</b></span><span>Licenses <b id="p-licenses">none</b></span><span>Vessel <b id="p-vessel">-</b></span>
     </div>
+    <div id="resume-card" class="resume hidden"><div class="group-h" style="margin:0 0 4px">Unfinished mission</div><div id="resume-text"></div><div class="row" style="margin-top:8px"><button id="resume-btn">Resume</button><button id="resume-discard" class="ghost">Discard</button></div></div>
     <div id="board-list" class="mlist"></div>
     <div class="row">
       <button id="board-licenses">Licenses</button>
@@ -388,6 +401,8 @@
     </div>
     <div class="settings-block">
       <label>Camera sensitivity<input id="set-sens" type="range" min="0.2" max="3" step="0.1"></label>
+      <label>Sound volume<input id="set-volume" type="range" min="0" max="1" step="0.05"></label>
+      <label><input id="set-mute" type="checkbox"> Mute sound</label>
       <label>Graphics quality
         <select id="set-quality">
           <option value="auto">Auto (lowers itself if slow)</option>
@@ -398,6 +413,17 @@
       </label>
       <label><input id="set-fps" type="checkbox"> Show performance overlay (FPS)</label>
       <label><input id="set-calm" type="checkbox"> Reduce camera motion</label>
+    </div>
+    <div id="backup-block" class="settings-block hidden">
+      <div class="group-h">Progress backup</div>
+      <p class="note">Your progress is stored in this browser only. Save a backup file to keep it safe or move it to another device.</p>
+      <div class="row">
+        <button id="backup-save" class="ghost" type="button">Save backup file</button>
+        <button id="backup-load" class="ghost" type="button">Load backup file</button>
+        <input id="backup-file" type="file" accept="application/json,.json" class="hidden" aria-label="Choose a backup file">
+      </div>
+      <p id="backup-msg" class="note" role="status"></p>
+      <div class="row"><button id="backup-confirm" class="danger hidden" type="button">Replace my progress with this backup</button></div>
     </div>
     <div class="row"><button id="bench-btn" class="ghost hidden">Run benchmark (about 20 s)</button><button id="pause-close" class="ghost hidden">Close</button></div>
   </div>

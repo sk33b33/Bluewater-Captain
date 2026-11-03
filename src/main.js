@@ -16,7 +16,8 @@ import { createRun, stepRun, applyImpact, registerRespawn, abortRun, respawnPose
 import { findRoutes, routeFromPath, nextMarkers, isComplete, validatePath, planMission, estimateSeconds } from './sim/routes.js';
 import { PORTS } from './data/ports.js';
 import { createChart } from './ui/chart.js';
-import { loadProfile, saveProfile, recordResult, clearProfile, safeStorage } from './sim/profile.js';
+import { loadProfile, saveProfile, recordResult, clearProfile, safeStorage, exportProfile, importProfile, describeProfile } from './sim/profile.js';
+import { snapshot, readSave, writeSave, clearSave, resume, describeSave } from './sim/save.js';
 import { formatTime } from './sim/route.js';
 import { pickQuestions, scoreQuiz } from './sim/quiz.js';
 import { evaluateLicense, missionAccess, isHeld, examFor, chooseVessel, usableVessels, fleetStatus, selectVessel, startExam, judgeExam, applyExamOutcome, recordWritten, coachingTips } from './sim/licenses.js';
@@ -27,6 +28,7 @@ import { applyAtmosphere } from './render/atmosphere.js';
 import { createWater } from './render/water.js';
 import { buildStatic, buildBoat, buildBuoys, buildBerth, disposeObject, updateBuoys, poseBoat, addLights } from './render/scene.js';
 import { createInput } from './input.js';
+import { createAudio } from './audio.js';
 import { createHud } from './ui/hud.js';
 import { createMenus } from './ui/menus.js';
 import { setupTouchControls } from './ui/touch.js';
@@ -123,6 +125,7 @@ const touchUi = setupTouchControls(input);
 const vessel = createVesselState(MISSIONS[0].start.x, MISSIONS[0].start.z, MISSIONS[0].start.heading);
 let mode = 'menu'; // menu | board | briefing | licenses | quiz | play | paused | settings | result
 const QUIZ_POOLS = { 'small-craft-permit': SMALL_CRAFT_QUESTIONS, 'coastal-skipper': COASTAL_SKIPPER_QUESTIONS, 'large-vessel': LARGE_VESSEL_QUESTIONS };
+let pendingImport = null;
 let quizLic = null;
 let quizQuestions = [];
 let mission = null;
@@ -133,6 +136,7 @@ let obstacles = baseObstacles;
 let selected = null;
 let stuckTime = 0;
 let shoalWarnAt = -99;
+let saveAt = 0;
 let time = 0;
 let acc = 0;
 let last = performance.now();
@@ -162,12 +166,12 @@ function clearMission() {
   run = null;
 }
 
-function startMission(m, vessel) {
+function startMission(m, vesselModel, restored = null) {  // `vesselModel` is the vessel definition; `vessel` (module level) is the boat's state
   clearMission();
   mission = m;
-  setVessel(vessel);
+  setVessel(vesselModel);
   applyWeather(getWeather(m.weather));
-  run = createRun(m, vessel);
+  run = restored ? restored.run : createRun(m, vesselModel);
   buoys = buildBuoys(m.waypoints, m.start);
   scene.add(buoys.group);
   obstacles = [...baseObstacles, ...shoalsFor(vp)]; // deep-draft ships also run aground on shoals
@@ -177,7 +181,18 @@ function startMission(m, vessel) {
   menus.hideAll();
   setPlaying(true);
   input.clearPressed();
+  if (restored) {
+    // Back exactly where the save left the boat and the clock, but paused so nothing happens before you are ready.
+    Object.assign(vessel, restored.state);
+    camHeading = vessel.heading;
+    time = restored.time;
+    mode = 'paused';
+    menus.showPause(true, { canRestart: m.kind !== 'exam', abortLabel: m.kind === 'exam' ? 'Abort exam (fee not refunded)' : 'Abort mission' });
+    document.getElementById('pause-title').textContent = 'Mission resumed: paused';
+    return;
+  }
   mode = 'play';
+  audio.play('horn', vp);
   hud.warn(m.dock ? 'Underway: head for the first yellow beam' : 'Follow the yellow beams', 3000);
 }
 
@@ -190,7 +205,8 @@ function heldNames() {
 }
 function showBoard() {
   mode = 'board';
-  menus.showBoard(profile, boardEntries(), heldNames(), (getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL)).name);
+  const sv = readSave(storage);
+  menus.showBoard(profile, boardEntries(), heldNames(), (getVessel(profile.vessel) || getVessel(DEFAULT_VESSEL)).name, sv ? describeSave(sv) : null);
 }
 
 function enterBoard() {
@@ -364,6 +380,9 @@ function respawn(reason, manual = false) {
 }
 
 function finish() {
+  clearSave(storage);
+  audio.play('chime');
+  audio.play('horn', vp);
   const result = scoreRun(run);
   const prev = profile.completed[mission.id];
   const newBest = !prev || result.total > prev.bestScore;
@@ -390,6 +409,8 @@ function routeSummary(m, result) {
 }
 
 function failMission(reason) {
+  clearSave(storage);
+  audio.play('fail');
   mode = 'result';
   setPlaying(false);
   menus.showFail(mission, reason);
@@ -399,12 +420,15 @@ function handleEvents(events) {
   for (const e of events) {
     if (mode !== 'play') return;
     if (e.type === 'waypoint') {
+      audio.play('ping');
       const wp = mission.waypoints[e.index];
       if (e.last && mission.dock) hud.warn(`Docking: ease into the green berth at ${BERTHS[mission.dock].name}`, 3500);
       else if (!e.last) hud.warn(`Checkpoint: ${wp.name}`, 1500);
     } else if (e.type === 'strain') {
+      audio.play('creak');
       hud.warn('Easy on the helm: the cargo is shifting', 2500);
     } else if (e.type === 'speeding') {
+      audio.play('beep');
       hud.warn(`Slow down: ${e.zone.name} limit is ${Math.round(e.zone.knots)} knots`, 2500);
     } else if (e.type === 'damage') {
       hud.warn(`Collision! Hull ${Math.round(e.integrity)}%`, 1500);
@@ -416,6 +440,13 @@ function handleEvents(events) {
   }
 }
 
+// Autosave: the mission in progress is kept so a closed tab or a crash does not lose it.
+function saveNow() {
+  if (run && mission && (mode === 'play' || mode === 'paused') && (run.phase === 'underway' || run.phase === 'docking')) writeSave(storage, snapshot(run, vessel, mission, time));
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+window.addEventListener('pagehide', saveNow);
+
 // ---- menus
 const menus = createMenus({
   onStart: () => enterBoard(),
@@ -424,6 +455,41 @@ const menus = createMenus({
   onBoard: () => enterBoard(),
   onRetry: () => { if (!mission) return; if (mission.kind === 'exam') showBriefing(mission); else startMission(mission, vp); },
   onFleet: () => showFleet(),
+  onResumeSave: () => {
+    const snap = readSave(storage);
+    const r = snap && resume(snap);
+    if (!r) { clearSave(storage); toast('That saved mission can no longer be resumed, so it was discarded.'); showBoard(); return; }
+    startMission(r.mission, r.vessel, r);
+  },
+  onDiscardSave: () => { clearSave(storage); showBoard(); },
+  onBackupSave: () => {
+    const text = exportProfile(profile);
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bluewater-captain-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    menus.setBackupMessage(`Backup saved: ${describeProfile(profile)}.`, false);
+  },
+  onBackupFile: async (file) => {
+    pendingImport = null;
+    if (file.size > 200 * 1024) { menus.setBackupMessage('That file is too large to be a Bluewater Captain backup.', false); return; }
+    const res = importProfile(await file.text());
+    if (!res.ok) { menus.setBackupMessage(res.error, false); return; }
+    pendingImport = res.profile;
+    menus.setBackupMessage(`This backup holds ${describeProfile(res.profile)}. Loading it replaces your current progress (${describeProfile(profile)}).`, true);
+  },
+  onBackupConfirm: () => {
+    if (!pendingImport) return;
+    profile = pendingImport;
+    pendingImport = null;
+    saveProfile(storage, profile);
+    clearSave(storage);
+    menus.setBackupMessage(`Backup loaded: ${describeProfile(profile)}.`, false);
+  },
   onChart: () => openChart(false),
   onPlanRoute: () => openChart(true),
   onBenchStart: () => benchStart(),
@@ -456,6 +522,7 @@ const menus = createMenus({
 function openPause() {
   if (mode !== 'play') return;
   mode = 'paused';
+  saveNow();
   menus.showPause(true, { canRestart: mission.kind !== 'exam', abortLabel: mission.kind === 'exam' ? 'Abort exam (fee not refunded)' : 'Abort mission' });
 }
 function closePauseUi() { document.getElementById('pause').classList.add('hidden'); }
@@ -496,6 +563,16 @@ sens.value = String(settings.sensitivity);
 qualitySel.value = settings.quality;
 fpsBox.checked = settings.showFps;
 calm.checked = settings.reducedMotion;
+const audio = createAudio({ volume: settings.volume, muted: settings.muted });
+const volumeEl = document.getElementById('set-volume');
+const muteEl = document.getElementById('set-mute');
+volumeEl.value = String(settings.volume);
+muteEl.checked = settings.muted;
+volumeEl.addEventListener('input', () => { settings.volume = parseFloat(volumeEl.value); saveSettings(); audio.setLevel({ volume: settings.volume }); });
+muteEl.addEventListener('change', () => { settings.muted = muteEl.checked; saveSettings(); audio.setLevel({ muted: settings.muted }); });
+// Browsers only allow sound after a player gesture, so the audio context is created on the first one.
+for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, () => audio.unlock(), { passive: true });
+document.addEventListener('visibilitychange', () => { if (document.hidden) audio.suspend(); else audio.resume(); });
 perfEl.classList.toggle('hidden', !settings.showFps);
 sens.addEventListener('input', () => { settings.sensitivity = parseFloat(sens.value); saveSettings(); });
 qualitySel.addEventListener('change', () => {
@@ -509,13 +586,15 @@ calm.addEventListener('change', () => { settings.reducedMotion = calm.checked; s
 
 // Older saves used a Low graphics checkbox.
 function loadSettings() {
-  const d = { sensitivity: 1, quality: 'auto', showFps: false, reducedMotion: false };
+  const d = { sensitivity: 1, quality: 'auto', showFps: false, reducedMotion: false, volume: 0.6, muted: false };
   try {
     const raw = JSON.parse(localStorage.getItem('bwc-settings') || '{}');
     const out = { ...d, ...raw };
     if (raw.quality === undefined && raw.lowGraphics) out.quality = 'low';
     if (!['auto', 'low', 'medium', 'high'].includes(out.quality)) out.quality = 'auto';
     delete out.lowGraphics;
+    out.volume = Number.isFinite(out.volume) ? Math.min(1, Math.max(0, out.volume)) : 0.6;
+    out.muted = out.muted === true;
     return out;
   } catch { return d; }
 }
@@ -596,11 +675,13 @@ function tick(dt) {
     return;
   }
   if (mode !== 'play' || !run) return;
+  if (time - saveAt >= 5) { saveAt = time; saveNow(); }
   const inp = input.read();
   stepVessel(vessel, inp, vp, dt, windVector(windAt(weather, time)), sea);
   const col = resolveCollisions(vessel, vp, obstacles);
   const events = [];
   if (col.hit) {
+    if (col.impact > 0.5) audio.play('thump', col.impact);
     const dmg = applyImpact(run, col.impact, vp.hullStrength);
     if (dmg) events.push(dmg);
     stuckTime += dt;
@@ -643,8 +724,8 @@ function frame(now) {
   acc += dt;
   while (acc >= STEP) { tick(STEP); acc -= STEP; }
 
-  const inp = input.read();
-  if (input.wasPressed('KeyR') || inp.padRespawn) { if (mode === 'play') respawn('Respawned at last safe point', true); }
+  input.pollPad();
+  if (input.wasPressed('KeyR')) { if (mode === 'play') respawn('Respawned at last safe point', true); }
   if (input.wasPressed('Escape')) {
     if (mode === 'play') openPause();
     else if (mode === 'paused' || mode === 'settings') closePause();
@@ -667,6 +748,7 @@ function frame(now) {
   poseBoat(boat, vessel, time, vp, seaWaves);
   if (buoys) updateBuoys(buoys, time, run && run.phase === 'underway' ? run.route.next : -1, seaWaves);
   if (wakeMesh) wakeMesh.userData.sync(wake, time, seaWaves, camera, renderer.domElement.height);
+  audio.update({ playing: mode === 'play' || mode === 'bench', vessel: vp, throttle: vessel.throttle, speed: Math.hypot(vessel.u, vessel.v), waveHs: weather.waveHs, windSpeed: windAt(weather, time).speed });
   updateCamera(dt);
   if (run) updateHud();
   renderer.render(scene, camera);
@@ -765,6 +847,10 @@ window.__bwc = {
   LICENSES,
   get vesselId() { return vp.id; },
   get route() { return briefingRoute; },
+  get audio() { return audio.snapshot(); },
+  get audioState() { return audio.state; },
+  saveNow,
+  readSaveRaw: () => readSave(storage),
   get plan() { return planState; },
   get quality() { return qualityId; },
   get weatherId() { return weather.id; },

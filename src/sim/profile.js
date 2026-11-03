@@ -93,3 +93,33 @@ export function safeStorage() {
     return { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
   }
 }
+
+// ---- Backup file: save your progress to a file and load it on another browser or device.
+// The file is plain JSON, validated on load (size, app tag, version) and passed through sanitizeProfile.
+export const EXPORT_APP = 'bluewater-captain';
+export const EXPORT_VERSION = 1;
+export const MAX_IMPORT_BYTES = 200 * 1024;
+
+export function exportProfile(profile, now = Date.now()) {
+  return JSON.stringify({ app: EXPORT_APP, exportVersion: EXPORT_VERSION, exportedAt: now, profile: sanitizeProfile(profile) }, null, 2);
+}
+
+// Returns { ok: true, profile } or { ok: false, error } (error is a sentence for the player).
+export function importProfile(text) {
+  if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'The file is empty.' };
+  if (text.length > MAX_IMPORT_BYTES) return { ok: false, error: 'The file is too large to be a Bluewater Captain backup.' };
+  let raw;
+  try { raw = JSON.parse(text); } catch { return { ok: false, error: 'The file is not valid JSON.' }; }
+  if (!raw || raw.app !== EXPORT_APP) return { ok: false, error: 'This is not a Bluewater Captain backup file.' };
+  if (raw.exportVersion !== EXPORT_VERSION) return { ok: false, error: 'This backup comes from a different version of the game.' };
+  const p = raw.profile;
+  if (!p || typeof p !== 'object' || ![1, 2, PROFILE_VERSION].includes(p.version)) return { ok: false, error: 'The saved progress inside the file is missing or too old to read.' };
+  return { ok: true, profile: sanitizeProfile(p) };
+}
+
+// One line for the confirmation step: what you are about to load.
+export function describeProfile(p) {
+  const licenses = Object.values(p.licenses).filter((l) => l.held).length;
+  const plays = Object.values(p.completed).reduce((a, c) => a + c.plays, 0);
+  return `${p.credits} credits, reputation ${p.reputation}, ${licenses} license${licenses === 1 ? '' : 's'}, ${plays} job${plays === 1 ? '' : 's'} completed`;
+}

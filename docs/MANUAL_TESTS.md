@@ -164,3 +164,8 @@ Ask for a test profile with the Large Vessel Endorsement if you do not want to e
 | 17 | Wind with the container carrier at the berth | The stack drifts you; you still need to hold still inside the berth | |
 | 18 | Phone: a ship job | Camera far enough back to see the ship; controls usable | |
 | 19 | Run the Stage 5 benchmark again | Frame rates still acceptable with ships and cranes | |
+| 20 | Start a mission, sail, reload the page | Board offers Resume; the boat and clock are where you left them, paused | |
+| 21 | Settings, Save backup then Load backup | Dated JSON downloads; loading asks for confirmation; a wrong file is refused | |
+| 22 | Listen while sailing | Engine pitch rises with speed; Mute and Volume work; silent when paused. Judge the mix | |
+| 23 | Real gamepad | A confirms, B/Start pause, Y respawns once, triggers and stick drive | |
+| 24 | Real phone, every screen, portrait and landscape | Nothing overflows; buttons easy to tap; warnings readable | |

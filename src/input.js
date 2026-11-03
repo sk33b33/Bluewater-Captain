@@ -1,4 +1,7 @@
 // Keyboard + gamepad -> { throttle, steer }, plus one-shot actions.
+// Gamepad (standard mapping): left stick steers, triggers (or left stick up/down) set throttle,
+// A = Enter (confirm / next), B = Escape (back / pause), Start = Escape, Y = respawn.
+// Buttons act once per press, not every frame while held.
 export function createInput(target = window) {
   const keys = new Set();
   const pressed = new Set();
@@ -13,6 +16,8 @@ export function createInput(target = window) {
   target.addEventListener('blur', () => keys.clear());
 
   const touch = { throttle: 0, steer: 0 };
+  const padHeld = new Set();
+  const PAD_ACTIONS = { 0: 'Enter', 1: 'Escape', 3: 'KeyR', 9: 'Escape' };
   const dead = (v) => (Math.abs(v) < 0.15 ? 0 : v);
 
   return {
@@ -34,9 +39,17 @@ export function createInput(target = window) {
       return {
         throttle: Math.max(-1, Math.min(1, throttle)),
         steer: Math.max(-1, Math.min(1, steer)),
-        padRespawn: !!pad?.buttons[3]?.pressed,
-        padConfirm: !!pad?.buttons[0]?.pressed,
       };
+    },
+    // Call once per frame: turns gamepad button presses into the same one-shot actions as the keyboard.
+    pollPad() {
+      const pad = (navigator.getGamepads && navigator.getGamepads()[0]) || null;
+      if (!pad) { padHeld.clear(); return; }
+      for (const [i, code] of Object.entries(PAD_ACTIONS)) {
+        const down = !!(pad.buttons[i] && pad.buttons[i].pressed);
+        if (down && !padHeld.has(i)) pressed.add(code);
+        if (down) padHeld.add(i); else padHeld.delete(i);
+      }
     },
     wasPressed(code) {
       return pressed.delete(code);

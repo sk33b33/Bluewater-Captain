@@ -2,11 +2,13 @@
 
 ## Open issues
 - Frame rate on the user's GTX 770 is unmeasured; the water grid (360x360) and pixel ratio may need tuning.
-- Boat, port and islands are crude placeholder primitives; no wake/foam, no audio.
+- Boat, port and islands are crude placeholder primitives.
 - Touch controls added after Stage 1 on user request; verified only with headless phone emulation (390x844), not on a real phone. Landscape phones hide the stats row. Collision uses simple circles/rects (boat can clip visually into the pier edge).
 - Docking tolerances (1.5 m/s, 25 degrees, 2 s hold) and mission deadlines/rewards are unplayed estimates; expect tuning. The boat coasts a long time at low speed, so players must reverse to brake.
-- An in-progress mission is not saved: reloading the page returns to the mission board (credits and best results are kept).
-- Profile lives in browser storage only: clearing site data or switching browser/device loses it.
+- Mid-mission save and backup file exist (gap-closing pass) but are verified only by unit tests and headless Chromium. The save is one slot; the backup is a manual JSON file the player must keep.
+- Sound is procedural (oscillators and noise). It is verified by reading the audio levels in tests; nobody has listened to it, so the mix, pitch and volume balance are unjudged.
+- Gamepad mapping (A confirm, B/Start pause, Y respawn, triggers, left stick) is tested with a simulated pad only, not a real controller.
+- The phone-layout audit runs in emulated Chromium at 390x844, 360x640 and 844x390. No real phone, Firefox or Safari has been tried.
 - Wave undersampling: the 7 m water grid can shimmer on the shortest (18 m) wave; revisit in Stage 5.
 - Mission start positions are teleports (no tug/undocking sequence); the boat starts inside a berth.
 - Engine switched from UE5 to browser (D-005); risks R1, R7, R8 below were written for UE5.
@@ -31,7 +33,7 @@
 - The benchmark takes over the screen for about 20 seconds and moves the boat on its own; Esc cancels.
 - The headless performance numbers are from software rendering and mean nothing for real GPUs.
 
-- Stage 6 estimates: route deadlines (route length / 6.8 m/s + 30 s), slow-zone penalties, the early bonus and reputation gates are unplayed. Long jobs (3 to 4 km) take 6 to 10 minutes and may feel long; there is no pause-and-save mid-mission.
+- Stage 6 estimates: route deadlines (route length / 6.8 m/s + 30 s), slow-zone penalties, the early bonus and reputation gates are unplayed. Long jobs (3 to 4 km) take 6 to 10 minutes and may feel long.
 - Routes are paths through charted markers only; you cannot place your own waypoints, and every leg is a straight line.
 - Only one hazard type is modelled on the chart (narrow passage). No tides, currents, shoals with depth, or traffic.
 - The harbor mouth and basin are fixed approach waypoints for the home port, so the last stretch into Bluewater Harbor is not up to the player.

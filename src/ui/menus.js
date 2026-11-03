@@ -87,6 +87,12 @@ export function createMenus(h) {
   $('board-chart').addEventListener('click', () => h.onChart());
   $('br-plan').addEventListener('click', () => h.onPlanRoute());
   $('bench-btn').addEventListener('click', () => h.onBenchStart());
+  $('resume-btn').addEventListener('click', () => h.onResumeSave());
+  $('resume-discard').addEventListener('click', () => h.onDiscardSave());
+  $('backup-save').addEventListener('click', () => h.onBackupSave());
+  $('backup-load').addEventListener('click', () => { $('backup-file').value = ''; $('backup-file').click(); });
+  $('backup-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) h.onBackupFile(f); });
+  $('backup-confirm').addEventListener('click', () => h.onBackupConfirm());
   $('bench-close').addEventListener('click', () => h.onBenchClose());
   $('bench-apply').addEventListener('click', () => h.onBenchApply($('bench-apply').dataset.id));
   $('fleet-back').addEventListener('click', () => h.onBoard());
@@ -116,7 +122,7 @@ export function createMenus(h) {
     showStart() { show('start'); },
 
     // entries: [{ mission, access: {ok, reason} }] in board order
-    showBoard(profile, entries, heldNames, vesselName) {
+    showBoard(profile, entries, heldNames, vesselName, resumeText) {
       resetArmed = false;
       $('reset-note').classList.add('hidden');
       $('p-credits').textContent = String(profile.credits);
@@ -124,6 +130,8 @@ export function createMenus(h) {
       $('p-xp').textContent = String(profile.xp);
       $('p-licenses').textContent = heldNames.length ? heldNames.join(', ') : 'none yet';
       $('p-vessel').textContent = vesselName;
+      $('resume-card').classList.toggle('hidden', !resumeText);
+      if (resumeText) $('resume-text').textContent = resumeText;
       const list = $('board-list');
       list.textContent = '';
       let lastKind = null;
@@ -447,6 +455,11 @@ export function createMenus(h) {
       show('bench');
     },
 
+    setBackupMessage(text, canConfirm) {
+      $('backup-msg').textContent = text;
+      $('backup-confirm').classList.toggle('hidden', !canConfirm);
+    },
+
     showPause(inGame, opts = {}) {
       $('pause-title').textContent = inGame ? 'Paused' : 'Settings';
       $('pause-actions').classList.toggle('hidden', !inGame);
@@ -454,6 +467,8 @@ export function createMenus(h) {
       $('pause-abort').textContent = opts.abortLabel || 'Abort mission';
       $('pause-close').classList.toggle('hidden', inGame);
       $('bench-btn').classList.toggle('hidden', inGame);
+      $('backup-block').classList.toggle('hidden', inGame);
+      if (!inGame) this.setBackupMessage('', false);
       show('pause');
     },
   };
